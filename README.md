@@ -1,0 +1,1 @@
+# norituru.svg-studio-edit-pro
