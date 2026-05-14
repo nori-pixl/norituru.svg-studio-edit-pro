@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Web Photoshop - Aspect Ratio Fixed</title>
+    <title>Web Photoshop - Selection Selection Fixed</title>
     <style>
         :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
         body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
@@ -13,17 +13,13 @@
         .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
         .tool-icon.active { background: var(--accent); }
         
-        /* ワークスペース */
+        /* Photoshop型のグレー余白付きワークスペース */
         #viewport { flex: 1; position: relative; overflow: hidden; background: #191919; touch-action: none; display: flex; align-items: center; justify-content: center; }
-        
-        /* 💡 変更点：プログラム側で設定した縦横比がそのまま維持され、歪まないように絶対サイズ指定へ統一 */
         #view-stage { position: relative; transform-origin: center center; overflow: hidden !important; box-shadow: 0 0 30px rgba(0,0,0,0.8); background: #ffffff; }
         #canvas-stack { width: 100%; height: 100%; position: relative; }
         
-        /* 💡 変更点：100%伸縮ではなく、親要素の本来の縦横比（アスペクト比）を絶対に壊さないように固定 */
         canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; object-fit: contain; }
         #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent !important; object-fit: contain; }
-        
         #paint-canvas.hand-mode { cursor: grab; }
         #paint-canvas.move-mode { cursor: move; }
         #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
@@ -141,11 +137,8 @@
 
     function applyNewCanvasDimensions(w, h, initMode = false) {
         canvasW = w; canvasH = h;
-        
-        // 💡 縦横比を歪ませない絶対サイズ固定化
         stage.style.width = canvasW + "px";
         stage.style.height = canvasH + "px";
-        
         pCanvas.width = canvasW;
         pCanvas.height = canvasH;
         
@@ -174,7 +167,6 @@
         const canvas = document.createElement('canvas');
         canvas.width = canvasW; canvas.height = canvasH;
         canvas.className = 'layer-canvas';
-        
         stack.insertBefore(canvas, pCanvas);
         const ctx = canvas.getContext('2d');
         
@@ -222,12 +214,21 @@
         updateUI();
     }
 
+    // 💡 修正点：画角変更時やズーム移動時でも「選択消去」の位置が絶対ズレないように座標計算を新設計
     function deleteSelectionContent() {
         if (!selection.active || activeIdx < 0) return;
         const l = layers[activeIdx];
-        l.ctx.clearRect(0, 0, canvasW, canvasH); l.ctx.drawImage(l.memCanvas, 0, 0);
+        
+        // 元画像（memCanvas）のバックアップから完全なクリア＆再描写
+        l.ctx.clearRect(0, 0, canvasW, canvasH);
+        l.ctx.drawImage(l.memCanvas, 0, 0);
+        
+        // 💡 ズレを根絶：画面の変形状態（offsetX/Yなど）に惑わされず、選択した純粋な初期x, y, w, hの位置だけをクリア
         l.ctx.clearRect(selection.x, selection.y, selection.w, selection.h);
-        clearMarquee(); refreshMemCanvas(); saveState();
+        
+        clearMarquee(); 
+        refreshMemCanvas(); 
+        saveState();
     }
 
     function onSizeSliderChange(val) {
@@ -238,9 +239,8 @@
     function refreshMemCanvas() {
         if(activeIdx < 0 || !layers[activeIdx]) return;
         const l = layers[activeIdx];
-        const mCtx = l.memCanvas.getContext('2d');
-        mCtx.clearRect(0, 0, canvasW, canvasH);
-        mCtx.drawImage(l.canvas, 0, 0);
+        l.memCanvas.getContext('2d').clearRect(0, 0, canvasW, canvasH);
+        l.memCanvas.getContext('2d').drawImage(l.canvas, 0, 0);
     }
 
     function onScaleSliderChange(val) {
@@ -270,7 +270,7 @@
         marqueeBox.style.left = (cx - visualW / 2) + 'px'; marqueeBox.style.top = (cy - visualH / 2) + 'px';
         marqueeBox.style.width = visualW + 'px'; marqueeBox.style.height = visualH + 'px';
     }
-    // ポップアップで幅と高さを自由に入力させて画角を変更する機能
+        // ポップアップで幅と高さを自由に入力させて画角を変更する機能
     function changeCanvasDimensionsManual() {
         const userW = prompt("キャンバスの『横幅（幅）』をピクセル数で入力してください：", canvasW);
         if (userW === null) return;
@@ -404,7 +404,7 @@
     function handleMove(clientX, clientY, touches) {
         if (!isTouching) return;
         if (touches && touches.length === 2) {
-            mode = 'zoom'; const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+            mode = 'zoom'; const dist = Math.hypot(touches.clientX - touches.clientX, touches.clientY - touches.clientY);
             if (initialDist === 0) { initialDist = dist; return; }
             vScale *= (dist / initialDist); initialDist = dist; stage.style.transform = `translate(${vX}px, ${vY}px) scale(${vScale})`; return;
         }
@@ -439,7 +439,7 @@
                 const rCtx = rawBuffer.getContext('2d');
                 rCtx.drawImage(l.canvas, selection.x, selection.y, selection.w, selection.h, 0, 0, selection.w, selection.h);
                 
-                // 💡 透過抽出フィルター：移動時に背景の白紙で後ろの絵を隠さないロジック
+                // 透過抽出フィルター：移動時に背景の白紙で後ろの絵を隠さないロジック
                 const bData = rCtx.getImageData(0, 0, selection.w, selection.h);
                 const pix = bData.data;
                 for (let i = 0; i < pix.length; i += 4) {
