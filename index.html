@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Web Photoshop - Custom Aspect Edition</title>
+    <style>
+        :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
+        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
+        header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; }
+        #main { flex: 1; display: flex; overflow: hidden; }
+        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000; }
+        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .tool-icon.active { background: var(--accent); }
+        
+        /* Photoshop型のグレー余白付きワークスペース */
+        #viewport { flex: 1; position: relative; overflow: hidden; background: #191919; touch-action: none; display: flex; align-items: center; justify-content: center; }
+        
+        /* プログラム（JS）から幅と高さを自由に変形させるため、固定CSSサイズを撤廃 */
+        #view-stage { position: relative; transform-origin: center center; overflow: hidden !important; box-shadow: 0 0 30px rgba(0,0,0,0.8); background: #ffffff; }
+        #canvas-stack { width: 100%; height: 100%; position: relative; }
+        
+        /* 各レイヤーは親要素（view-stage）の動的サイズに100%追従 */
+        canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; }
+        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent !important; }
+        #paint-canvas.hand-mode { cursor: grab; }
+        #paint-canvas.move-mode { cursor: move; }
+        #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
+        
+        #right-panel { width: 260px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        .control-group { padding: 12px; border-bottom: 1px solid #444; font-size: 13px; }
+        .control-group label { display: block; margin-bottom: 8px; color: #aaa; }
+        #layer-panel-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .layer-header-tools { padding: 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #444; }
+        #layer-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column-reverse; }
+        .layer-item { background: #444; margin: 4px 0; padding: 12px; font-size: 14px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .layer-item.active { background: var(--accent); border: 1px solid white; }
+        .layer-controls { display: flex; gap: 8px; align-items: center; }
+        .layer-btn { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 2px; }
+        .action-btn { background: #555; color: white; border: none; padding: 12px 20px; cursor: pointer; border-radius: 12px; font-size: 16px; font-weight: bold; }
+        input[type="range"] { width: 100%; }
+        .hidden-file { display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <button class="action-btn" onclick="undo()">↩️</button>
+    <button class="action-btn" onclick="redo()">↪️</button>
+    <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
+    <button class="action-btn" style="background:#0078d4;" onclick="changeCanvasDimensionsManual()">📐 画角変更</button>
+    <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
+    <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">🗑️ 選択消去</button>
+    <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
+    <button class="action-btn" style="background:#444;" onclick="exportSVG()">📤 SVG保存</button>
+    <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">📥 SVG読込</button>
+    <input type="file" id="svg-loader" class="hidden-file" accept=".svg" onchange="importSVG(this)">
+    <button class="action-btn" onclick="downloadImage()" style="margin-left:auto; background: #0078d4;">💾 PNG保存</button>
+</header>
+
+<div id="main">
+    <div id="sidebar">
+        <button class="tool-icon active" id="btn-pen" onclick="setTool('pen')">🖌️</button>
+        <button class="tool-icon" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
+        <button class="tool-icon" id="btn-marquee" onclick="setTool('marquee')" title="選択枠ツール">🔲</button>
+        <button class="tool-icon" id="btn-hand" onclick="setTool('hand')">✋</button>
+        <div style="border-top: 1px solid #555; width: 45px;"></div>
+        <button class="tool-icon" style="background:#444; font-size:22px;" onclick="copySelectionContent()" title="選択範囲をコピー">✂️</button>
+        <button class="tool-icon" style="background:#444; font-size:22px;" onclick="pasteToSameLayer()" title="同じレイヤー内に貼り付け">📋</button>
+        <div style="border-top: 1px solid #555; width: 45px;"></div>
+        <input type="color" id="colorPicker" value="#000000">
+    </div>
+
+    <div id="viewport">
+        <div id="view-stage">
+            <div id="canvas-stack">
+                <canvas id="paint-canvas"></canvas>
+            </div>
+            <div id="marquee-box"></div>
+        </div>
+    </div>
+
+    <div id="right-panel">
+        <div class="control-group">
+            <label id="size-label">ブラシの太さ</label>
+            <input type="range" id="sizeSlider" min="1" max="100" value="10" oninput="onSizeSliderChange(this.value)">
+            <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="sizeValue">10</span>px</div>
+        </div>
+        <div class="control-group">
+            <label>選択範囲の大きさ (0% 〜 500%)</label>
+            <input type="range" id="scaleSlider" min="0" max="500" value="100" oninput="onScaleSliderChange(this.value)">
+            <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="scaleValue">100</span>%</div>
+        </div>
+        <div class="control-group">
+            <label>選択範囲の回転角度 (0° 〜 180°)</label>
+            <input type="range" id="rotateSlider" min="0" max="180" value="0" oninput="onRotateSliderChange(this.value)">
+            <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="rotateValue">0</span>°</div>
+        </div>
+        <div id="layer-panel-section">
+            <div class="layer-header-tools">
+                <span style="font-size: 13px; color: #aaa; font-weight: bold;">レイヤー</span>
+                <button class="action-btn" onclick="addLayerManual()" style="background:#0078d4; padding:6px 12px; font-size:13px;">＋ 追加</button>
+            </div>
+            <div id="layer-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const stage = document.getElementById('view-stage');
+    const stack = document.getElementById('canvas-stack');
+    const pCanvas = document.getElementById('paint-canvas');
+    const pCtx = pCanvas.getContext('2d');
+    const marqueeBox = document.getElementById('marquee-box');
+    const layerList = document.getElementById('layer-list');
+    const sizeSlider = document.getElementById('sizeSlider');
+    const sizeValue = document.getElementById('sizeValue');
+    const sizeLabel = document.getElementById('size-label');
+    const scaleSlider = document.getElementById('scaleSlider');
+    const scaleValue = document.getElementById('scaleValue');
+    const rotateSlider = document.getElementById('rotateSlider');
+    const rotateValue = document.getElementById('rotateValue');
+
+    // 画角のサイズ（幅・高さ）を可変変数として定義。初期値は800x600
+    let canvasW = 800, canvasH = 600;
+
+    let layers = [], activeIdx = -1, tool = 'pen';
+    let vScale = 1, vX = 0, vY = 0;
+    let isTouching = false, startX, startY, lastX, lastY, initialDist = 0, mode = 'none';
+    let history = [], hStep = -1;
+    let clipboardBuffer = null;
+    let clipboardWidth = 0;
+    let clipboardHeight = 0;
+
+    let penSize = 10, eraserSize = 20;
+    let selection = { active: false, x: 0, y: 0, w: 0, h: 0, scale: 100, rotate: 0, buffer: null, offsetX: 0, offsetY: 0 };
+
+    // 初回起動設定
+    setTimeout(() => {
+        applyNewCanvasDimensions(800, 600, true); // 800x600で初期レイヤーを完全ビルド
+    }, 10);
+
+    // 指定された数値をもとに、画面上のCSSサイズと全キャンバスの解像度を一括リサイズするコアエンジン
+    function applyNewCanvasDimensions(w, h, initMode = false) {
+        canvasW = w; canvasH = h;
+        
+        // 1. 黒枠ステージ自体のCSS幅・高さを瞬時に変更
+        stage.style.width = canvasW + "px";
+        stage.style.height = canvasH + "px";
+        
+        // 2. 最前面シートのピクセル解像度を同期
+        pCanvas.width = canvasW;
+        pCanvas.height = canvasH;
+        
+        if (initMode) {
+            // 初回起動時のみ白い背景紙を1枚追加
+            addLayer("背景レイヤー", true);
+            saveState(); updateUI();
+        } else {
+            // 💡 途中変更時は、既存の全レイヤーと全メモリのピクセルサイズを安全に拡張・再定義
+            layers.forEach(l => {
+                const tmp = document.createElement('canvas');
+                tmp.width = l.canvas.width; tmp.height = l.canvas.height;
+                tmp.getContext('2d').drawImage(l.canvas, 0, 0);
+                
+                l.canvas.width = canvasW; l.canvas.height = canvasH;
+                l.memCanvas.width = canvasW; l.memCanvas.height = canvasH;
+                
+                if (l.name === "背景レイヤー") {
+                    l.ctx.fillStyle = "white"; l.ctx.fillRect(0, 0, canvasW, canvasH);
+                }
+                l.ctx.drawImage(tmp, 0, 0);
+            });
+            clearMarquee(); refreshMemCanvas(); saveState();
+        }
+    }
+
+    function addLayer(name = `レイヤー ${layers.length + 1}`, isWhite = false, fromImg = null) {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasW; canvas.height = canvasH;
+        canvas.className = 'layer-canvas';
+        
+        stack.insertBefore(canvas, pCanvas);
+        const ctx = canvas.getContext('2d');
+        
+        if(isWhite) { ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvasW, canvasH); }
+        if(fromImg) { ctx.drawImage(fromImg, 0, 0); }
+        
+        const memCanvas = document.createElement('canvas');
+        memCanvas.width = canvasW; memCanvas.height = canvasH;
+        layers.push({ canvas, ctx, name, memCanvas: memCanvas, visible: true });
+        activeIdx = layers.length - 1;
+        refreshMemCanvas();
+    }
+
+    function addLayerManual() { addLayer(); saveState(); updateUI(); }
+
+    function copySelectionContent() {
+        if (!selection.active || activeIdx < 0) return alert("🔲ツールで囲んで選択してからコピーしてください");
+        clipboardBuffer = document.createElement('canvas');
+        clipboardBuffer.width = selection.w; clipboardBuffer.height = selection.h;
+        clipboardBuffer.getContext('2d').drawImage(selection.buffer, 0, 0);
+        clipboardWidth = selection.w; clipboardHeight = selection.h;
+        alert("選択部分をコピーしました。📋で同じレイヤー内に貼り付けられます。");
+    }
+
+    function pasteToSameLayer() {
+        if (!clipboardBuffer || activeIdx < 0) return alert("コピーされたデータがありません");
+        if (selection.active) saveState();
+        clearMarquee();
+        selection.x = 40; selection.y = 40;
+        selection.w = clipboardWidth; selection.h = clipboardHeight;
+        selection.active = true;
+        refreshMemCanvas();
+        selection.buffer = document.createElement('canvas');
+        selection.buffer.width = clipboardWidth; selection.buffer.height = clipboardHeight;
+        selection.buffer.getContext('2d').drawImage(clipboardBuffer, 0, 0);
+        renderSelectionTransform();
+        marqueeBox.style.display = 'block';
+        setTool('marquee');
+    }
+
+    function toggleLayerVisibility(idx, e) {
+        e.stopPropagation();
+        layers[idx].visible = !layers[idx].visible;
+        layers[idx].canvas.style.opacity = layers[idx].visible ? '1' : '0';
+        updateUI();
+    }
+
+    function deleteSelectionContent() {
+        if (!selection.active || activeIdx < 0) return;
+        const l = layers[activeIdx];
+        l.ctx.clearRect(0, 0, canvasW, canvasH); l.ctx.drawImage(l.memCanvas, 0, 0);
+        l.ctx.clearRect(selection.x, selection.y, selection.w, selection.h);
+        clearMarquee(); refreshMemCanvas(); saveState();
+    }
+
+    function onSizeSliderChange(val) {
+        const v = parseInt(val); sizeValue.innerText = v;
+        if (tool === 'pen') penSize = v; else if (tool === 'eraser') eraserSize = v;
+    }
+
+    function refreshMemCanvas() {
+        if(activeIdx < 0 || !layers[activeIdx]) return;
+        const l = layers[activeIdx];
+        const mCtx = l.memCanvas.getContext('2d');
+        mCtx.clearRect(0, 0, canvasW, canvasH);
+        mCtx.drawImage(l.canvas, 0, 0);
+    }
+
+    function onScaleSliderChange(val) {
+        if (!selection.active) return;
+        selection.scale = parseInt(val); scaleValue.innerText = val;
+        renderSelectionTransform();
+    }
+
+    function onRotateSliderChange(val) {
+        if (!selection.active) return;
+        selection.rotate = parseInt(val); rotateValue.innerText = val;
+        renderSelectionTransform();
+    }
+
+    function renderSelectionTransform() {
+        if (!selection.active || activeIdx < 0 || !layers[activeIdx].memCanvas) return;
+        const l = layers[activeIdx];
+        l.ctx.clearRect(0, 0, canvasW, canvasH); l.ctx.drawImage(l.memCanvas, 0, 0); 
+        l.ctx.clearRect(selection.x, selection.y, selection.w, selection.h); 
+        l.ctx.save();
+        const cx = selection.x + selection.w / 2 + selection.offsetX;
+        const cy = selection.y + selection.h / 2 + selection.offsetY;
+        l.ctx.translate(cx, cy); l.ctx.rotate(selection.rotate * Math.PI / 180);
+        const sFact = selection.scale / 100; l.ctx.scale(sFact, sFact);
+        l.ctx.drawImage(selection.buffer, -selection.w / 2, -selection.h / 2); l.ctx.restore();
+        const visualW = selection.w * sFact; const visualH = selection.h * sFact;
+        marqueeBox.style.left = (cx - visualW / 2) + 'px'; marqueeBox.style.top = (cy - visualH / 2) + 'px';
+        marqueeBox.style.width = visualW + 'px'; marqueeBox.style.height = visualH + 'px';
+    }
+    // ポップアップで幅と高さを自由に入力させて画角を変更する機能
+    function changeCanvasDimensionsManual() {
+        const userW = prompt("キャンバスの『横幅（幅）』をピクセル数で入力してください：", canvasW);
+        if (userW === null) return;
+        
+        const userH = prompt("キャンバスの『縦幅（高さ）』をピクセル数で入力してください：", canvasH);
+        if (userH === null) return;
+
+        const parseW = parseInt(userW);
+        const parseH = parseInt(userH);
+
+        if (isNaN(parseW) || parseW <= 0 || isNaN(parseH) || parseH <= 0) {
+            alert("エラー：正しい数値を入力してください（例: 1280）");
+            return;
+        }
+
+        if (parseW > 10000 || parseH > 10000) {
+            alert("エラー：10000ピクセル以下の画角を指定してください");
+            return;
+        }
+
+        applyNewCanvasDimensions(parseW, parseH, false);
+        alert(`画角を ${parseW} x ${parseH} に正常に変更しました！\n（既存の絵は左上に保持されています）`);
+    }
+
+    // 確認画面（はい/いいえ）を出す安全レイヤー削除機能
+    function deleteLayerByIdx(idx, e) {
+        e.stopPropagation(); 
+        if (layers.length <= 1) return alert("これ以上削除できません");
+        
+        const result = confirm(`本当に「${layers[idx].name}」を削除しますか？\n（この操作は元に戻せません）`);
+        
+        if (result) {
+            layers[idx].canvas.remove();
+            layers.splice(idx, 1);
+            
+            if (activeIdx >= layers.length) {
+                activeIdx = layers.length - 1;
+            } else if (activeIdx === idx) {
+                activeIdx = Math.max(0, idx - 1);
+            }
+            
+            clearMarquee();
+            refreshMemCanvas();
+            saveState();
+            updateUI();
+        }
+    }
+
+    function saveState() {
+        const state = layers.map(l => {
+            const cache = document.createElement('canvas'); cache.width = canvasW; cache.height = canvasH;
+            cache.getContext('2d').drawImage(l.canvas, 0, 0);
+            return { canvas: cache, name: l.name, visible: l.visible };
+        });
+        if (hStep < history.length - 1) history = history.slice(0, hStep + 1);
+        history.push(state); hStep++;
+    }
+
+    function undo() { if (hStep > 0) { hStep--; restore(); } }
+    function redo() { if (hStep < history.length - 1) { hStep++; restore(); } }
+
+    function restore() {
+        const state = history[hStep];
+        state.forEach((s, i) => {
+            layers[i].ctx.clearRect(0, 0, canvasW, canvasH); layers[i].ctx.drawImage(s.canvas, 0, 0);
+            layers[i].visible = s.visible; layers[i].canvas.style.opacity = s.visible ? '1' : '0';
+        });
+        refreshMemCanvas(); clearMarquee(); updateUI();
+    }
+
+    function updateUI() {
+        layerList.innerHTML = '';
+        layers.forEach((l, idx) => {
+            const div = document.createElement('div');
+            div.className = `layer-item ${idx === activeIdx ? 'active' : ''}`;
+            div.onclick = () => { activeIdx = idx; clearMarquee(); refreshMemCanvas(); updateUI(); };
+            
+            div.innerHTML = `
+                <span>${l.name}</span>
+                <div class="layer-controls">
+                    <button class="layer-btn" onclick="toggleLayerVisibility(${idx}, event)" title="表示/非表示">${l.visible ? '👁️' : '🙈'}</button>
+                    <button class="layer-btn" onclick="deleteLayerByIdx(${idx}, event)" style="color:#ff6666; margin-left:4px;" title="このレイヤーを削除">🗑️</button>
+                </div>
+            `;
+            layerList.appendChild(div);
+        });
+    }
+
+    function setTool(t) { 
+        if (tool === 'marquee' && selection.active) saveState();
+        tool = t; if(t !== 'marquee') clearMarquee();
+        document.querySelectorAll('.tool-icon').forEach(b => b.classList.toggle('active', b.id === 'btn-'+t));
+        if (t === 'pen') { sizeLabel.innerText = "ブラシの太さ"; sizeSlider.value = penSize; sizeValue.innerText = penSize; }
+        else if (t === 'eraser') { sizeLabel.innerText = "消しゴムの太さ"; sizeSlider.value = eraserSize; sizeValue.innerText = eraserSize; }
+        if (tool === 'hand') pCanvas.className = 'hand-mode';
+        else if (tool === 'marquee' && selection.active) pCanvas.className = 'move-mode';
+        else pCanvas.className = '';
+    }
+
+    function clearMarquee() {
+        selection.active = false; selection.offsetX = 0; selection.offsetY = 0; selection.scale = 100; selection.rotate = 0;
+        marqueeBox.style.display = 'none'; scaleSlider.value = 100; scaleValue.innerText = "100"; rotateSlider.value = 0; rotateValue.innerText = "0";
+    }
+
+    function getRawCanvasPos(clientX, clientY) {
+        const r = pCanvas.getBoundingClientRect();
+        return { x: (clientX - r.left) * (canvasW / r.width), y: (clientY - r.top) * (canvasH / r.height) };
+    }
+
+    function handleStart(clientX, clientY) {
+        isTouching = true; const p = getRawCanvasPos(clientX, clientY);
+        startX = p.x; startY = p.y; lastX = clientX; lastY = clientY;
+        const l = layers[activeIdx];
+        if (!l || !l.visible) { isTouching = false; return; }
+        
+        if (tool === 'marquee') {
+            const sFact = selection.scale / 100; const visualW = selection.w * sFact; const visualH = selection.h * sFact;
+            const cx = selection.x + selection.w / 2 + selection.offsetX; const cy = selection.y + selection.h / 2 + selection.offsetY;
+            
+            if (selection.active && p.x >= cx - visualW / 2 && p.x <= cx + visualW / 2 && p.y >= cy - visualH / 2 && p.y <= cy + visualH / 2) { 
+                mode = 'marquee-move'; 
+            } else { 
+                if (selection.active) saveState();
+                clearMarquee();
+                mode = 'marquee-draw';
+            }
+        } else if (tool === 'hand') { mode = 'pan'; }
+        else { pCtx.clearRect(0, 0, canvasW, canvasH); pCtx.beginPath(); pCtx.moveTo(p.x, p.y); mode = 'draw'; }
+    }
+
+    function handleMove(clientX, clientY, touches) {
+        if (!isTouching) return;
+        if (touches && touches.length === 2) {
+            mode = 'zoom'; const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+            if (initialDist === 0) { initialDist = dist; return; }
+            vScale *= (dist / initialDist); initialDist = dist; stage.style.transform = `translate(${vX}px, ${vY}px) scale(${vScale})`; return;
+        }
+        const p = getRawCanvasPos(clientX, clientY); const l = layers[activeIdx];
+        if (mode === 'pan' || tool === 'hand') {
+            vX += (clientX - lastX); vY += (clientY - lastY); stage.style.transform = `translate(${vX}px, ${vY}px) scale(${vScale})`;
+        } else if (mode === 'marquee-draw') {
+            const x = Math.min(startX, p.x); const y = Math.min(startY, p.y); const w = Math.abs(p.x - startX); const h = Math.abs(p.y - startY);
+            marqueeBox.style.display = 'block'; marqueeBox.style.left = x + 'px'; marqueeBox.style.top = y + 'px'; marqueeBox.style.width = w + 'px'; marqueeBox.style.height = h + 'px';
+            selection.x = x; selection.y = y; selection.w = w; selection.h = h;
+        } else if (mode === 'marquee-move') {
+            selection.offsetX += (p.x - startX); selection.offsetY += (p.y - startY); startX = p.x; startY = p.y; renderSelectionTransform();
+        } else if (mode === 'draw' && l) {
+            pCtx.lineTo(p.x, p.y); pCtx.strokeStyle = tool === 'eraser' ? '#ffffff' : document.getElementById('colorPicker').value;
+            pCtx.lineWidth = tool === 'eraser' ? eraserSize : penSize; pCtx.lineCap = 'round'; pCtx.lineJoin = 'round'; pCtx.stroke();
+        }
+        lastX = clientX; lastY = clientY;
+    }
+
+    function handleEnd() {
+        if (!isTouching) return; const l = layers[activeIdx];
+        if (mode === 'draw' && l) {
+            l.ctx.save(); if (tool === 'eraser') l.ctx.globalCompositeOperation = 'destination-out';
+            l.ctx.drawImage(pCanvas, 0, 0); l.ctx.restore(); pCtx.clearRect(0, 0, canvasW, canvasH); refreshMemCanvas(); saveState();
+        } else if (mode === 'marquee-draw' && l) {
+            if (selection.w > 5 && selection.h > 5) {
+                selection.active = true;
+                l.memCanvas.getContext('2d').clearRect(0, 0, canvasW, canvasH); l.memCanvas.getContext('2d').drawImage(l.canvas, 0, 0);
+                
+                const rawBuffer = document.createElement('canvas'); 
+                rawBuffer.width = selection.w; rawBuffer.height = selection.h;
+                const rCtx = rawBuffer.getContext('2d');
+                rCtx.drawImage(l.canvas, selection.x, selection.y, selection.w, selection.h, 0, 0, selection.w, selection.h);
+                
+                // 💡 【透過抽出フィルター】移動時に背景の白紙で後ろの絵を隠さないロジック
+                const bData = rCtx.getImageData(0, 0, selection.w, selection.h);
+                const pix = bData.data;
+                for (let i = 0; i < pix.length; i += 4) {
+                    if (pix[i] >= 242 && pix[i+1] >= 242 && pix[i+2] >= 242) {
+                        pix[i+3] = 0; 
+                    }
+                }
+                rCtx.putImageData(bData, 0, 0);
+                selection.buffer = rawBuffer; 
+                
+                renderSelectionTransform();
+            } else { clearMarquee(); }
+        } else if (mode === 'marquee-move') { saveState(); }
+        isTouching = false; mode = 'none'; initialDist = 0;
+    }
+
+    pCanvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+    window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, null));
+    window.addEventListener('mouseup', handleEnd);
+    pCanvas.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; handleStart(t.clientX, t.clientY); }, {passive: false});
+    window.addEventListener('touchmove', e => { 
+        e.preventDefault(); 
+        if (e.touches.length === 2) { handleMove(0, 0, e.touches); } 
+        else { const t = e.touches[0]; handleMove(t.clientX, t.clientY, null); } 
+    }, {passive: false});
+    window.addEventListener('touchend', handleEnd);
+    viewport.addEventListener('wheel', e => { e.preventDefault(); vScale *= e.deltaY > 0 ? 0.9 : 1.1; stage.style.transform = `translate(${vX}px, ${vY}px) scale(${vScale})`; }, {passive: false});
+
+    function exportSVG() {
+        let svgContent = `<svg xmlns="w3.org" width="${canvasW}" height="${canvasH}" viewBox="0 0 ${canvasW} ${canvasH}">`;
+        layers.forEach(l => { if (l.visible) { svgContent += `<image width="${canvasW}" height="${canvasH}" href="${l.canvas.toDataURL()}"/>`; } });
+        svgContent += `</svg>`;
+        const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+        const a = document.createElement('a'); a.download = 'artwork.svg'; a.href = URL.createObjectURL(blob); a.click();
+    }
+
+    function importSVG(input) {
+        const file = input.files; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const parser = new DOMParser(); const xmlDoc = parser.parseFromString(e.target.result, "image/svg+xml");
+            const images = xmlDoc.getElementsByTagName("image");
+            if(images.length > 0) {
+                document.querySelectorAll('.layer-canvas').forEach(c => c.remove()); layers = [];
+                Array.from(images).forEach((imgTag) => {
+                    const img = new Image();
+                    img.onload = () => { addLayer(`レイヤー ${layers.length+1}`, false, img); updateUI(); };
+                    img.src = imgTag.getAttribute("href");
+                });
+            }
+        };
+        reader.readAsText(file);
+    }
+    function downloadImage() { const out = document.createElement('canvas'); out.width = canvasW; out.height = canvasH; const oCtx = out.getContext('2d'); layers.forEach(l => { if(l.visible) oCtx.drawImage(l.canvas, 0, 0); }); const a = document.createElement('a'); a.download = 'art.png'; a.href = out.toDataURL(); a.click(); }
+</script>
+</body>
+</html>
