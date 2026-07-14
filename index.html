@@ -6,11 +6,11 @@
     <title>Web Photoshop - Selection Selection Fixed</title>
     <style>
         :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
-        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-sele[...] }
+        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
         header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; }
         #main { flex: 1; display: flex; overflow: hidden; }
-        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000[...] }
-        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content[...] }
+        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000; }
+        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
         .tool-icon.active { background: var(--accent); }
         
         /* Photoshop型のグレー余白付きワークスペース */
@@ -18,8 +18,8 @@
         #view-stage { position: relative; transform-origin: center center; overflow: hidden !important; box-shadow: 0 0 30px rgba(0,0,0,0.8); background: #ffffff; }
         #canvas-stack { width: 100%; height: 100%; position: relative; }
         
-        canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; object-fit[...] }
-        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent[...] }
+        canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; }
+        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent; }
         #paint-canvas.hand-mode { cursor: grab; }
         #paint-canvas.move-mode { cursor: move; }
         #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
@@ -130,20 +130,23 @@
             return;
         }
         
+        if (activeIdx < 0 || !layers[activeIdx]) {
+            alert('レイヤーが選択されていません');
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = function(e) {
             const img = new Image();
             img.onload = function() {
-                // 現在のアクティブレイヤーに画像を描画
-                if (activeIdx >= 0 && layers[activeIdx]) {
-                    const l = layers[activeIdx];
-                    l.ctx.drawImage(img, 0, 0);
-                    refreshMemCanvas();
-                    saveState();
-                    console.log('画像を描画しました:', file.name);
-                } else {
-                    alert('レイヤーが選択されていません');
-                }
+                const l = layers[activeIdx];
+                // キャンバスサイズを画像に合わせるか、キャンバスにフィット
+                l.ctx.clearRect(0, 0, canvasW, canvasH);
+                l.ctx.drawImage(img, 0, 0, canvasW, canvasH);
+                refreshMemCanvas();
+                saveState();
+                updateUI();
+                console.log('画像を描画しました:', file.name);
             };
             img.onerror = function() {
                 alert('画像の読み込みに失敗しました');
@@ -249,16 +252,12 @@
         updateUI();
     }
 
-    // 💡 修正点：画角変更時やズーム移動時でも「選択消去」の位置が絶対ズレないように座標計算を新設計
     function deleteSelectionContent() {
         if (!selection.active || activeIdx < 0) return;
         const l = layers[activeIdx];
         
-        // 元画像（memCanvas）のバックアップから完全なクリア＆再描写
         l.ctx.clearRect(0, 0, canvasW, canvasH);
         l.ctx.drawImage(l.memCanvas, 0, 0);
-        
-        // 💡 ズレを根絶：画面の変形状態（offsetX/Yなど）に惑わされず、選択した純粋な初期x, y, w, hの位置だけをクリア
         l.ctx.clearRect(selection.x, selection.y, selection.w, selection.h);
         
         clearMarquee(); 
@@ -305,7 +304,7 @@
         marqueeBox.style.left = (cx - visualW / 2) + 'px'; marqueeBox.style.top = (cy - visualH / 2) + 'px';
         marqueeBox.style.width = visualW + 'px'; marqueeBox.style.height = visualH + 'px';
     }
-        // ポップアップで幅と高さを自由に入力させて画角を変更する機能
+        
     function changeCanvasDimensionsManual() {
         const userW = prompt("キャンバスの『横幅（幅）』をピクセル数で入力してください：", canvasW);
         if (userW === null) return;
@@ -330,7 +329,6 @@
         alert(`画角を ${parseW} x ${parseH} に正常に変更しました！\n（既存の絵は左上に保持されています）`);
     }
 
-    // 確認画面（はい/いいえ）を出す安全レイヤー削除機能
     function deleteLayerByIdx(idx, e) {
         e.stopPropagation(); 
         if (layers.length <= 1) return alert("これ以上削除できません");
@@ -474,7 +472,6 @@
                 const rCtx = rawBuffer.getContext('2d');
                 rCtx.drawImage(l.canvas, selection.x, selection.y, selection.w, selection.h, 0, 0, selection.w, selection.h);
                 
-                // 透過抽出フィルター：移動時に背景の白紙で後ろの絵を隠さないロジック
                 const bData = rCtx.getImageData(0, 0, selection.w, selection.h);
                 const pix = bData.data;
                 for (let i = 0; i < pix.length; i += 4) {
@@ -504,7 +501,7 @@
     viewport.addEventListener('wheel', e => { e.preventDefault(); vScale *= e.deltaY > 0 ? 0.9 : 1.1; stage.style.transform = `translate(${vX}px, ${vY}px) scale(${vScale})`; }, {passive: false});
 
     function exportSVG() {
-        let svgContent = `<svg xmlns="w3.org" width="${canvasW}" height="${canvasH}" viewBox="0 0 ${canvasW} ${canvasH}">`;
+        let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" viewBox="0 0 ${canvasW} ${canvasH}">`;
         layers.forEach(l => { if (l.visible) { svgContent += `<image width="${canvasW}" height="${canvasH}" href="${l.canvas.toDataURL()}"/>`; } });
         svgContent += `</svg>`;
         const blob = new Blob([svgContent], { type: 'image/svg+xml' });
@@ -512,13 +509,13 @@
     }
 
     function importSVG(input) {
-        const file = input.files; if (!file) return;
+        const file = input.files[0]; if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
             const parser = new DOMParser(); const xmlDoc = parser.parseFromString(e.target.result, "image/svg+xml");
             const images = xmlDoc.getElementsByTagName("image");
             if(images.length > 0) {
-                document.querySelectorAll('.layer-canvas').forEach(c => c.remove()); layers = [];
+                document.querySelectorAll('.layer-canvas').forEach(c => c.remove()); layers = []; activeIdx = -1;
                 Array.from(images).forEach((imgTag) => {
                     const img = new Image();
                     img.onload = () => { addLayer(`レイヤー ${layers.length+1}`, false, img); updateUI(); };
@@ -528,7 +525,20 @@
         };
         reader.readAsText(file);
     }
-    function downloadImage() { const out = document.createElement('canvas'); out.width = canvasW; out.height = canvasH; const oCtx = out.getContext('2d'); layers.forEach(l => { if(l.visible) oCtx.drawImage(l.canvas, 0, 0); }); const link = document.createElement('a'); link.href = out.toDataURL(); link.download = 'canvas.png'; link.click(); }
+    
+    function downloadImage() { 
+        const out = document.createElement('canvas'); 
+        out.width = canvasW; 
+        out.height = canvasH; 
+        const oCtx = out.getContext('2d'); 
+        oCtx.fillStyle = "white"; 
+        oCtx.fillRect(0, 0, canvasW, canvasH);
+        layers.forEach(l => { if(l.visible) oCtx.drawImage(l.canvas, 0, 0); }); 
+        const link = document.createElement('a'); 
+        link.href = out.toDataURL(); 
+        link.download = 'canvas.png'; 
+        link.click(); 
+    }
 </script>
 </body>
 </html>
