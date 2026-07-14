@@ -6,11 +6,11 @@
     <title>Web Photoshop - Selection Selection Fixed</title>
     <style>
         :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
-        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-sele[...] }
         header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; }
         #main { flex: 1; display: flex; overflow: hidden; }
-        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000; }
-        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000[...] }
+        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content[...] }
         .tool-icon.active { background: var(--accent); }
         
         /* Photoshop型のグレー余白付きワークスペース */
@@ -18,8 +18,8 @@
         #view-stage { position: relative; transform-origin: center center; overflow: hidden !important; box-shadow: 0 0 30px rgba(0,0,0,0.8); background: #ffffff; }
         #canvas-stack { width: 100%; height: 100%; position: relative; }
         
-        canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; object-fit: contain; }
-        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent !important; object-fit: contain; }
+        canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; object-fit[...] }
+        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent[...] }
         #paint-canvas.hand-mode { cursor: grab; }
         #paint-canvas.move-mode { cursor: move; }
         #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
@@ -120,15 +120,39 @@
     const scaleValue = document.getElementById('scaleValue');
     const rotateSlider = document.getElementById('rotateSlider');
     const rotateValue = document.getElementById('rotateValue');
-     function clk() {
-          const fileInput = document.getElementById('myFile');
-      const fileName = e.target.files[0].name;
-          console.log('ファイル名:', fileName);
-          const img = new Image();
-        //
-            img.src = fileName; 
-            pCtx.drawImage(img, 0, 0);
-     }
+    
+    function clk() {
+        const fileInput = document.getElementById('myFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('ファイルを選択してください');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                // 現在のアクティブレイヤーに画像を描画
+                if (activeIdx >= 0 && layers[activeIdx]) {
+                    const l = layers[activeIdx];
+                    l.ctx.drawImage(img, 0, 0);
+                    refreshMemCanvas();
+                    saveState();
+                    console.log('画像を描画しました:', file.name);
+                } else {
+                    alert('レイヤーが選択されていません');
+                }
+            };
+            img.onerror = function() {
+                alert('画像の読み込みに失敗しました');
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
     let canvasW = 800, canvasH = 600;
 
     let layers = [], activeIdx = -1, tool = 'pen';
@@ -504,7 +528,7 @@
         };
         reader.readAsText(file);
     }
-    function downloadImage() { const out = document.createElement('canvas'); out.width = canvasW; out.height = canvasH; const oCtx = out.getContext('2d'); layers.forEach(l => { if(l.visible) oCtx.drawImage(l.canvas, 0, 0); }); const a = document.createElement('a'); a.download = 'art.png'; a.href = out.toDataURL(); a.click(); }
+    function downloadImage() { const out = document.createElement('canvas'); out.width = canvasW; out.height = canvasH; const oCtx = out.getContext('2d'); layers.forEach(l => { if(l.visible) oCtx.drawImage(l.canvas, 0, 0); }); const link = document.createElement('a'); link.href = out.toDataURL(); link.download = 'canvas.png'; link.click(); }
 </script>
 </body>
 </html>
