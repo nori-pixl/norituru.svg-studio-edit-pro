@@ -64,6 +64,7 @@
         <div style="border-top: 1px solid #555; width: 45px;"></div>
         <button class="tool-icon" style="background:#444; font-size:22px;" onclick="copySelectionContent()" title="選択範囲をコピー">✂️</button>
         <button class="tool-icon" style="background:#444; font-size:22px;" onclick="pasteToSameLayer()" title="同じレイヤー内に貼り付け">📋</button>
+        <input　class="tool-icon" style="background:#444; font-size:22px;" type="file" id="myFile" accept="image/*">
         <div style="border-top: 1px solid #555; width: 45px;"></div>
         <input type="color" id="colorPicker" value="#000000">
     </div>
@@ -117,7 +118,25 @@
     const scaleValue = document.getElementById('scaleValue');
     const rotateSlider = document.getElementById('rotateSlider');
     const rotateValue = document.getElementById('rotateValue');
-
+      const fileInput = document.getElementById('myFile');
+      fileInput.addEventListener('change', (e) => {
+        // ファイルが選択されているか確認
+        if (e.target.files.length > 0) {
+          // 選択されたファイルのファイル名を取得
+          const fileName = e.target.files[0].name;
+          
+          // コンソールに出力
+          console.log('ファイル名:', fileName);
+          
+          const img = new Image();
+        // 表示したい画像のURLを指定
+            img.src = fileName; 
+            img.onload = () => {
+    // drawImage(画像オブジェクト, X座標, Y座標)
+    pCtx.drawImage(img, 0, 0);
+};
+        }
+      });
     let canvasW = 800, canvasH = 600;
 
     let layers = [], activeIdx = -1, tool = 'pen';
