@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Web Photoshop - Selection Selection Fixed</title>
+    <title>Web Photoshop - Full Features</title>
     <style>
         :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
         body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
-        header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; }
+        header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; overflow-x: auto; }
         #main { flex: 1; display: flex; overflow: hidden; }
-        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000; }
-        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000; overflow-y: auto; }
+        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .tool-icon:hover { background: #555; }
         .tool-icon.active { background: var(--accent); }
         
         /* Photoshop型のグレー余白付きワークスペース */
@@ -19,12 +20,12 @@
         #canvas-stack { width: 100%; height: 100%; position: relative; }
         
         canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; }
-        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent; }
+        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent !important; }
         #paint-canvas.hand-mode { cursor: grab; }
         #paint-canvas.move-mode { cursor: move; }
         #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
         
-        #right-panel { width: 260px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        #right-panel { width: 280px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
         .control-group { padding: 12px; border-bottom: 1px solid #444; font-size: 13px; }
         .control-group label { display: block; margin-bottom: 8px; color: #aaa; }
         #layer-panel-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -32,43 +33,47 @@
         #layer-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column-reverse; }
         .layer-item { background: #444; margin: 4px 0; padding: 12px; font-size: 14px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
         .layer-item.active { background: var(--accent); border: 1px solid white; }
-        .layer-controls { display: flex; gap: 8px; align-items: center; }
-        .layer-btn { background: none; border: none; color: white; cursor: pointer; font-size: 16px; padding: 2px; }
-        .action-btn { background: #555; color: white; border: none; padding: 12px 20px; cursor: pointer; border-radius: 12px; font-size: 16px; font-weight: bold; }
+        .layer-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .layer-btn { background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 2px 4px; }
+        .layer-btn:hover { color: var(--accent); }
+        .action-btn { background: #555; color: white; border: none; padding: 12px 20px; cursor: pointer; border-radius: 12px; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        .action-btn:hover { background: #666; }
         input[type="range"] { width: 100%; }
         .hidden-file { display: none; }
+        .divider { width: 45px; border-top: 1px solid #555; }
     </style>
 </head>
 <body>
 
 <header>
-    <h3>Svg Studio Edit</h3>
-        <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <button class="action-btn" onclick="undo()">↩️</button>
-    <button class="action-btn" onclick="redo()">↪️</button>
+    <h3>Svg Studio Edit Pro</h3>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <button class="action-btn" style="background:#0078d4;" onclick="changeCanvasDimensionsManual()">📐 画角変更</button>
+    <button class="action-btn" onclick="undo()">↩️ Undo</button>
+    <button class="action-btn" onclick="redo()">↪️ Redo</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">🗑️ 選択消去</button>
+    <button class="action-btn" style="background:#0078d4;" onclick="changeCanvasDimensionsManual()">📐 Canvas Size</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <input type="file" id="myFile" accept="image/*"><button onclick="clk()">適応</button>
-    <button class="action-btn" style="background:#444;" onclick="exportSVG()">📤 SVG保存</button>
-    <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">📥 SVG読込</button>
+    <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">🗑️ Delete Selection</button>
+    <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
+    <input type="file" id="myFile" accept="image/*" style="display:none;"><button class="action-btn" onclick="document.getElementById('myFile').click()">🖼️ Add Image</button>
+    <button class="action-btn" style="background:#444;" onclick="exportSVG()">📤 Export SVG</button>
+    <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">📥 Import SVG</button>
     <input type="file" id="svg-loader" class="hidden-file" accept=".svg" onchange="importSVG(this)">
-    <button class="action-btn" onclick="downloadImage()" style="margin-left:auto; background: #0078d4;">💾 PNG保存</button>
+    <button class="action-btn" onclick="downloadImage()" style="margin-left:auto; background: #0078d4;">💾 Export PNG</button>
 </header>
 
 <div id="main">
     <div id="sidebar">
-        <button class="tool-icon active" id="btn-pen" onclick="setTool('pen')">🖌️</button>
-        <button class="tool-icon" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
-        <button class="tool-icon" id="btn-marquee" onclick="setTool('marquee')" title="選択枠ツール">🔲</button>
-        <button class="tool-icon" id="btn-hand" onclick="setTool('hand')">✋</button>
-        <div style="border-top: 1px solid #555; width: 45px;"></div>
-        <button class="tool-icon" style="background:#444; font-size:22px;" onclick="copySelectionContent()" title="選択範囲をコピー">✂️</button>
-        <button class="tool-icon" style="background:#444; font-size:22px;" onclick="pasteToSameLayer()" title="同じレイヤー内に貼り付け">📋</button>
-        <div style="border-top: 1px solid #555; width: 45px;"></div>
-        <input type="color" id="colorPicker" value="#000000">
+        <button class="tool-icon active" id="btn-pen" onclick="setTool('pen')" title="Pen Tool">🖌️</button>
+        <button class="tool-icon" id="btn-eraser" onclick="setTool('eraser')" title="Eraser Tool">🧽</button>
+        <button class="tool-icon" id="btn-bucket" onclick="setTool('bucket')" title="Bucket Fill">🪣</button>
+        <button class="tool-icon" id="btn-marquee" onclick="setTool('marquee')" title="Selection Tool">🔲</button>
+        <button class="tool-icon" id="btn-hand" onclick="setTool('hand')" title="Hand Tool">✋</button>
+        <div class="divider"></div>
+        <button class="tool-icon" style="background:#444; font-size:22px;" onclick="copySelectionContent()" title="Copy Selection">✂️</button>
+        <button class="tool-icon" style="background:#444; font-size:22px;" onclick="pasteToSameLayer()" title="Paste">📋</button>
+        <div class="divider"></div>
+        <input type="color" id="colorPicker" value="#000000" style="width:50px; height:40px; cursor:pointer; border-radius:8px;">
     </div>
 
     <div id="viewport">
@@ -82,24 +87,29 @@
 
     <div id="right-panel">
         <div class="control-group">
-            <label id="size-label">ブラシの太さ</label>
+            <label id="size-label">Brush Size</label>
             <input type="range" id="sizeSlider" min="1" max="100" value="10" oninput="onSizeSliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="sizeValue">10</span>px</div>
         </div>
         <div class="control-group">
-            <label>選択範囲の大きさ (0% 〜 500%)</label>
+            <label>Layer Opacity</label>
+            <input type="range" id="opacitySlider" min="0" max="100" value="100" oninput="onOpacitySliderChange(this.value)">
+            <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="opacityValue">100</span>%</div>
+        </div>
+        <div class="control-group">
+            <label>Selection Scale (0% - 500%)</label>
             <input type="range" id="scaleSlider" min="0" max="500" value="100" oninput="onScaleSliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="scaleValue">100</span>%</div>
         </div>
         <div class="control-group">
-            <label>選択範囲の回転角度 (0° 〜 180°)</label>
+            <label>Selection Rotation (0° - 180°)</label>
             <input type="range" id="rotateSlider" min="0" max="180" value="0" oninput="onRotateSliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="rotateValue">0</span>°</div>
         </div>
         <div id="layer-panel-section">
             <div class="layer-header-tools">
-                <span style="font-size: 13px; color: #aaa; font-weight: bold;">レイヤー</span>
-                <button class="action-btn" onclick="addLayerManual()" style="background:#0078d4; padding:6px 12px; font-size:13px;">＋ 追加</button>
+                <span style="font-size: 13px; color: #aaa; font-weight: bold;">Layers</span>
+                <button class="action-btn" onclick="addLayerManual()" style="background:#0078d4; padding:6px 12px; font-size:13px;">＋ Add</button>
             </div>
             <div id="layer-list"></div>
         </div>
@@ -116,48 +126,14 @@
     const sizeSlider = document.getElementById('sizeSlider');
     const sizeValue = document.getElementById('sizeValue');
     const sizeLabel = document.getElementById('size-label');
+    const opacitySlider = document.getElementById('opacitySlider');
+    const opacityValue = document.getElementById('opacityValue');
     const scaleSlider = document.getElementById('scaleSlider');
     const scaleValue = document.getElementById('scaleValue');
     const rotateSlider = document.getElementById('rotateSlider');
     const rotateValue = document.getElementById('rotateValue');
     
-    function clk() {
-        const fileInput = document.getElementById('myFile');
-        const file = fileInput.files[0];
-        
-        if (!file) {
-            alert('ファイルを選択してください');
-            return;
-        }
-        
-        if (activeIdx < 0 || !layers[activeIdx]) {
-            alert('レイヤーが選択されていません');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const l = layers[activeIdx];
-                // キャンバスサイズを画像に合わせるか、キャンバスにフィット
-                l.ctx.clearRect(0, 0, canvasW, canvasH);
-                l.ctx.drawImage(img, 0, 0, canvasW, canvasH);
-                refreshMemCanvas();
-                saveState();
-                updateUI();
-                console.log('画像を描画しました:', file.name);
-            };
-            img.onerror = function() {
-                alert('画像の読み込みに失敗しました');
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-
     let canvasW = 800, canvasH = 600;
-
     let layers = [], activeIdx = -1, tool = 'pen';
     let vScale = 1, vX = 0, vY = 0;
     let isTouching = false, startX, startY, lastX, lastY, initialDist = 0, mode = 'none';
@@ -168,6 +144,89 @@
 
     let penSize = 10, eraserSize = 20;
     let selection = { active: false, x: 0, y: 0, w: 0, h: 0, scale: 100, rotate: 0, buffer: null, offsetX: 0, offsetY: 0 };
+
+    // Flood fill helper
+    function floodFill(ctx, x, y, fillColor, tolerance = 30) {
+        const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        const data = imageData.data;
+        const width = ctx.canvas.width;
+        
+        const startIdx = (Math.floor(y) * width + Math.floor(x)) * 4;
+        const startR = data[startIdx];
+        const startG = data[startIdx + 1];
+        const startB = data[startIdx + 2];
+        const startA = data[startIdx + 3];
+        
+        const fillR = parseInt(fillColor.substr(1, 2), 16);
+        const fillG = parseInt(fillColor.substr(3, 2), 16);
+        const fillB = parseInt(fillColor.substr(5, 2), 16);
+        
+        if (startR === fillR && startG === fillG && startB === fillB) return;
+        
+        const queue = [[Math.floor(x), Math.floor(y)]];
+        const visited = new Set();
+        
+        while (queue.length > 0) {
+            const [px, py] = queue.shift();
+            if (px < 0 || px >= width || py >= ctx.canvas.height) continue;
+            
+            const key = `${px},${py}`;
+            if (visited.has(key)) continue;
+            visited.add(key);
+            
+            const idx = (py * width + px) * 4;
+            const r = data[idx], g = data[idx + 1], b = data[idx + 2], a = data[idx + 3];
+            
+            if (Math.abs(r - startR) <= tolerance && Math.abs(g - startG) <= tolerance && 
+                Math.abs(b - startB) <= tolerance && a > 128) {
+                data[idx] = fillR; data[idx + 1] = fillG; data[idx + 2] = fillB; data[idx + 3] = 255;
+                queue.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    document.getElementById('myFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return alert('Please select a file');
+        
+        if (activeIdx < 0 || !layers[activeIdx]) return alert('Please select a layer');
+        
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const img = new Image();
+            img.onload = function() {
+                const l = layers[activeIdx];
+                const ctx = l.ctx;
+                
+                // Clear layer
+                ctx.clearRect(0, 0, canvasW, canvasH);
+                
+                // Calculate aspect-fit dimensions
+                const imgAspect = img.width / img.height;
+                const canvasAspect = canvasW / canvasH;
+                let drawW, drawH, drawX = 0, drawY = 0;
+                
+                if (imgAspect > canvasAspect) {
+                    drawW = canvasW;
+                    drawH = canvasW / imgAspect;
+                    drawY = (canvasH - drawH) / 2;
+                } else {
+                    drawH = canvasH;
+                    drawW = canvasH * imgAspect;
+                    drawX = (canvasW - drawW) / 2;
+                }
+                
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                refreshMemCanvas();
+                saveState();
+                updateUI();
+            };
+            img.onerror = function() { alert('Failed to load image'); };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 
     setTimeout(() => {
         applyNewCanvasDimensions(800, 600, true);
@@ -181,7 +240,7 @@
         pCanvas.height = canvasH;
         
         if (initMode) {
-            addLayer("背景レイヤー", true);
+            addLayer("Background", true);
             saveState(); updateUI();
         } else {
             layers.forEach(l => {
@@ -192,7 +251,7 @@
                 l.canvas.width = canvasW; l.canvas.height = canvasH;
                 l.memCanvas.width = canvasW; l.memCanvas.height = canvasH;
                 
-                if (l.name === "背景レイヤー") {
+                if (l.name === "Background") {
                     l.ctx.fillStyle = "white"; l.ctx.fillRect(0, 0, canvasW, canvasH);
                 }
                 l.ctx.drawImage(tmp, 0, 0);
@@ -201,7 +260,7 @@
         }
     }
 
-    function addLayer(name = `レイヤー ${layers.length + 1}`, isWhite = false, fromImg = null) {
+    function addLayer(name = `Layer ${layers.length + 1}`, isWhite = false, fromImg = null) {
         const canvas = document.createElement('canvas');
         canvas.width = canvasW; canvas.height = canvasH;
         canvas.className = 'layer-canvas';
@@ -213,7 +272,7 @@
         
         const memCanvas = document.createElement('canvas');
         memCanvas.width = canvasW; memCanvas.height = canvasH;
-        layers.push({ canvas, ctx, name, memCanvas: memCanvas, visible: true });
+        layers.push({ canvas, ctx, name, memCanvas: memCanvas, visible: true, opacity: 100 });
         activeIdx = layers.length - 1;
         refreshMemCanvas();
     }
@@ -221,16 +280,16 @@
     function addLayerManual() { addLayer(); saveState(); updateUI(); }
 
     function copySelectionContent() {
-        if (!selection.active || activeIdx < 0) return alert("🔲ツールで囲んで選択してからコピーしてください");
+        if (!selection.active || activeIdx < 0) return alert("🔲 Make a selection first");
         clipboardBuffer = document.createElement('canvas');
         clipboardBuffer.width = selection.w; clipboardBuffer.height = selection.h;
         clipboardBuffer.getContext('2d').drawImage(selection.buffer, 0, 0);
         clipboardWidth = selection.w; clipboardHeight = selection.h;
-        alert("選択部分をコピーしました。📋で同じレイヤー内に貼り付けられます。");
+        alert("Selection copied!");
     }
 
     function pasteToSameLayer() {
-        if (!clipboardBuffer || activeIdx < 0) return alert("コピーされたデータがありません");
+        if (!clipboardBuffer || activeIdx < 0) return alert("No copied data");
         if (selection.active) saveState();
         clearMarquee();
         selection.x = 40; selection.y = 40;
@@ -248,8 +307,34 @@
     function toggleLayerVisibility(idx, e) {
         e.stopPropagation();
         layers[idx].visible = !layers[idx].visible;
-        layers[idx].canvas.style.opacity = layers[idx].visible ? '1' : '0';
+        layers[idx].canvas.style.opacity = layers[idx].visible ? (layers[idx].opacity / 100) : '0';
         updateUI();
+    }
+
+    function moveLayerToFront(idx, e) {
+        e.stopPropagation();
+        if (idx >= layers.length - 1) return;
+        const layer = layers.splice(idx, 1)[0];
+        layers.push(layer);
+        stack.insertBefore(layer.canvas, pCanvas);
+        if (activeIdx === idx) activeIdx = layers.length - 1;
+        else if (activeIdx > idx) activeIdx--;
+        refreshMemCanvas();
+        updateUI();
+        saveState();
+    }
+
+    function moveLayerToBack(idx, e) {
+        e.stopPropagation();
+        if (idx <= 0) return;
+        const layer = layers.splice(idx, 1)[0];
+        layers.unshift(layer);
+        stack.insertBefore(layer.canvas, stack.firstChild);
+        if (activeIdx === idx) activeIdx = 0;
+        else if (activeIdx > idx) activeIdx--;
+        refreshMemCanvas();
+        updateUI();
+        saveState();
     }
 
     function deleteSelectionContent() {
@@ -268,6 +353,14 @@
     function onSizeSliderChange(val) {
         const v = parseInt(val); sizeValue.innerText = v;
         if (tool === 'pen') penSize = v; else if (tool === 'eraser') eraserSize = v;
+    }
+
+    function onOpacitySliderChange(val) {
+        if (activeIdx < 0) return;
+        const v = parseInt(val);
+        opacityValue.innerText = v;
+        layers[activeIdx].opacity = v;
+        layers[activeIdx].canvas.style.opacity = layers[activeIdx].visible ? (v / 100) : '0';
     }
 
     function refreshMemCanvas() {
@@ -306,34 +399,34 @@
     }
         
     function changeCanvasDimensionsManual() {
-        const userW = prompt("キャンバスの『横幅（幅）』をピクセル数で入力してください：", canvasW);
+        const userW = prompt("Enter canvas width (pixels):", canvasW);
         if (userW === null) return;
         
-        const userH = prompt("キャンバスの『縦幅（高さ）』をピクセル数で入力してください：", canvasH);
+        const userH = prompt("Enter canvas height (pixels):", canvasH);
         if (userH === null) return;
 
         const parseW = parseInt(userW);
         const parseH = parseInt(userH);
 
         if (isNaN(parseW) || parseW <= 0 || isNaN(parseH) || parseH <= 0) {
-            alert("エラー：正しい数値を入力してください（例: 1280）");
+            alert("Error: Enter valid numbers (e.g., 1280)");
             return;
         }
 
         if (parseW > 10000 || parseH > 10000) {
-            alert("エラー：10000ピクセル以下の画角を指定してください");
+            alert("Error: Maximum 10000px per dimension");
             return;
         }
 
         applyNewCanvasDimensions(parseW, parseH, false);
-        alert(`画角を ${parseW} x ${parseH} に正常に変更しました！\n（既存の絵は左上に保持されています）`);
+        alert(`Canvas resized to ${parseW} x ${parseH}!\n(Original content kept at top-left)`);
     }
 
     function deleteLayerByIdx(idx, e) {
         e.stopPropagation(); 
-        if (layers.length <= 1) return alert("これ以上削除できません");
+        if (layers.length <= 1) return alert("Cannot delete last layer");
         
-        const result = confirm(`本当に「${layers[idx].name}」を削除しますか？\n（この操作は元に戻せません）`);
+        const result = confirm(`Delete layer "${layers[idx].name}"?\n(Cannot undo)`);
         
         if (result) {
             layers[idx].canvas.remove();
@@ -356,7 +449,7 @@
         const state = layers.map(l => {
             const cache = document.createElement('canvas'); cache.width = canvasW; cache.height = canvasH;
             cache.getContext('2d').drawImage(l.canvas, 0, 0);
-            return { canvas: cache, name: l.name, visible: l.visible };
+            return { canvas: cache, name: l.name, visible: l.visible, opacity: l.opacity };
         });
         if (hStep < history.length - 1) history = history.slice(0, hStep + 1);
         history.push(state); hStep++;
@@ -369,7 +462,8 @@
         const state = history[hStep];
         state.forEach((s, i) => {
             layers[i].ctx.clearRect(0, 0, canvasW, canvasH); layers[i].ctx.drawImage(s.canvas, 0, 0);
-            layers[i].visible = s.visible; layers[i].canvas.style.opacity = s.visible ? '1' : '0';
+            layers[i].visible = s.visible; layers[i].opacity = s.opacity;
+            layers[i].canvas.style.opacity = s.visible ? (s.opacity / 100) : '0';
         });
         refreshMemCanvas(); clearMarquee(); updateUI();
     }
@@ -379,13 +473,15 @@
         layers.forEach((l, idx) => {
             const div = document.createElement('div');
             div.className = `layer-item ${idx === activeIdx ? 'active' : ''}`;
-            div.onclick = () => { activeIdx = idx; clearMarquee(); refreshMemCanvas(); updateUI(); };
+            div.onclick = () => { activeIdx = idx; clearMarquee(); refreshMemCanvas(); opacitySlider.value = l.opacity; opacityValue.innerText = l.opacity; updateUI(); };
             
             div.innerHTML = `
                 <span>${l.name}</span>
                 <div class="layer-controls">
-                    <button class="layer-btn" onclick="toggleLayerVisibility(${idx}, event)" title="表示/非表示">${l.visible ? '👁️' : '🙈'}</button>
-                    <button class="layer-btn" onclick="deleteLayerByIdx(${idx}, event)" style="color:#ff6666; margin-left:4px;" title="このレイヤーを削除">🗑️</button>
+                    <button class="layer-btn" onclick="toggleLayerVisibility(${idx}, event)" title="Toggle visibility">${l.visible ? '👁️' : '🙈'}</button>
+                    <button class="layer-btn" onclick="moveLayerToFront(${idx}, event)" title="Move to front">⬆️</button>
+                    <button class="layer-btn" onclick="moveLayerToBack(${idx}, event)" title="Move to back">⬇️</button>
+                    <button class="layer-btn" onclick="deleteLayerByIdx(${idx}, event)" style="color:#ff6666;" title="Delete layer">🗑️</button>
                 </div>
             `;
             layerList.appendChild(div);
@@ -396,8 +492,9 @@
         if (tool === 'marquee' && selection.active) saveState();
         tool = t; if(t !== 'marquee') clearMarquee();
         document.querySelectorAll('.tool-icon').forEach(b => b.classList.toggle('active', b.id === 'btn-'+t));
-        if (t === 'pen') { sizeLabel.innerText = "ブラシの太さ"; sizeSlider.value = penSize; sizeValue.innerText = penSize; }
-        else if (t === 'eraser') { sizeLabel.innerText = "消しゴムの太さ"; sizeSlider.value = eraserSize; sizeValue.innerText = eraserSize; }
+        if (t === 'pen') { sizeLabel.innerText = "Brush Size"; sizeSlider.value = penSize; sizeValue.innerText = penSize; }
+        else if (t === 'eraser') { sizeLabel.innerText = "Eraser Size"; sizeSlider.value = eraserSize; sizeValue.innerText = eraserSize; }
+        else if (t === 'bucket') { sizeLabel.innerText = "Fill Tolerance"; }
         if (tool === 'hand') pCanvas.className = 'hand-mode';
         else if (tool === 'marquee' && selection.active) pCanvas.className = 'move-mode';
         else pCanvas.className = '';
@@ -431,13 +528,20 @@
                 mode = 'marquee-draw';
             }
         } else if (tool === 'hand') { mode = 'pan'; }
+        else if (tool === 'bucket') {
+            const imgData = l.ctx.getImageData(Math.floor(p.x), Math.floor(p.y), 1, 1).data;
+            floodFill(l.ctx, p.x, p.y, document.getElementById('colorPicker').value, 30);
+            refreshMemCanvas(); 
+            saveState();
+            mode = 'none';
+        }
         else { pCtx.clearRect(0, 0, canvasW, canvasH); pCtx.beginPath(); pCtx.moveTo(p.x, p.y); mode = 'draw'; }
     }
 
     function handleMove(clientX, clientY, touches) {
         if (!isTouching) return;
         if (touches && touches.length === 2) {
-            mode = 'zoom'; const dist = Math.hypot(touches.clientX - touches.clientX, touches.clientY - touches.clientY);
+            mode = 'zoom'; const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
             if (initialDist === 0) { initialDist = dist; return; }
             vScale *= (dist / initialDist); initialDist = dist; stage.style.transform = `translate(${vX}px, ${vY}px) scale(${vScale})`; return;
         }
@@ -502,7 +606,7 @@
 
     function exportSVG() {
         let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" viewBox="0 0 ${canvasW} ${canvasH}">`;
-        layers.forEach(l => { if (l.visible) { svgContent += `<image width="${canvasW}" height="${canvasH}" href="${l.canvas.toDataURL()}"/>`; } });
+        layers.forEach(l => { if (l.visible) { svgContent += `<image opacity="${l.opacity/100}" width="${canvasW}" height="${canvasH}" href="${l.canvas.toDataURL()}"/>`; } });
         svgContent += `</svg>`;
         const blob = new Blob([svgContent], { type: 'image/svg+xml' });
         const a = document.createElement('a'); a.download = 'artwork.svg'; a.href = URL.createObjectURL(blob); a.click();
@@ -518,7 +622,7 @@
                 document.querySelectorAll('.layer-canvas').forEach(c => c.remove()); layers = []; activeIdx = -1;
                 Array.from(images).forEach((imgTag) => {
                     const img = new Image();
-                    img.onload = () => { addLayer(`レイヤー ${layers.length+1}`, false, img); updateUI(); };
+                    img.onload = () => { addLayer(`Layer ${layers.length+1}`, false, img); updateUI(); };
                     img.src = imgTag.getAttribute("href");
                 });
             }
@@ -533,7 +637,13 @@
         const oCtx = out.getContext('2d'); 
         oCtx.fillStyle = "white"; 
         oCtx.fillRect(0, 0, canvasW, canvasH);
-        layers.forEach(l => { if(l.visible) oCtx.drawImage(l.canvas, 0, 0); }); 
+        layers.forEach(l => { 
+            if(l.visible) {
+                oCtx.globalAlpha = l.opacity / 100;
+                oCtx.drawImage(l.canvas, 0, 0); 
+                oCtx.globalAlpha = 1;
+            }
+        }); 
         const link = document.createElement('a'); 
         link.href = out.toDataURL(); 
         link.download = 'canvas.png'; 
