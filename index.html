@@ -51,7 +51,7 @@
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
     <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">🗑️ 選択消去</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <input type="file" id="myFile" accept="image/*">
+    <input type="file" id="myFile" accept="image/*"><button onclick="clk()">適応</button>
     <button class="action-btn" style="background:#444;" onclick="exportSVG()">📤 SVG保存</button>
     <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">📥 SVG読込</button>
     <input type="file" id="svg-loader" class="hidden-file" accept=".svg" onchange="importSVG(this)">
@@ -120,25 +120,15 @@
     const scaleValue = document.getElementById('scaleValue');
     const rotateSlider = document.getElementById('rotateSlider');
     const rotateValue = document.getElementById('rotateValue');
-      const fileInput = document.getElementById('myFile');
-      fileInput.addEventListener('change', (e) => {
-        // ファイルが選択されているか確認
-        if (e.target.files.length > 0) {
-          // 選択されたファイルのファイル名を取得
-          const fileName = e.target.files[0].name;
-          
-          // コンソールに出力
+     function clk() {
+          const fileInput = document.getElementById('myFile');
+      const fileName = e.target.files[0].name;
           console.log('ファイル名:', fileName);
-          
           const img = new Image();
-        // 表示したい画像のURLを指定
+        //
             img.src = fileName; 
-            img.onload = () => {
-    // drawImage(画像オブジェクト, X座標, Y座標)
-    pCtx.drawImage(img, 0, 0);
-};
-        }
-      });
+            pCtx.drawImage(img, 0, 0);
+     }
     let canvasW = 800, canvasH = 600;
 
     let layers = [], activeIdx = -1, tool = 'pen';
