@@ -42,6 +42,8 @@
 <body>
 
 <header>
+    <h3>Svg Studio Edit</h3>
+        <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
     <button class="action-btn" onclick="undo()">↩️</button>
     <button class="action-btn" onclick="redo()">↪️</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
@@ -49,6 +51,7 @@
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
     <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">🗑️ 選択消去</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
+    <input type="file" id="myFile" accept="image/*">
     <button class="action-btn" style="background:#444;" onclick="exportSVG()">📤 SVG保存</button>
     <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">📥 SVG読込</button>
     <input type="file" id="svg-loader" class="hidden-file" accept=".svg" onchange="importSVG(this)">
@@ -64,7 +67,6 @@
         <div style="border-top: 1px solid #555; width: 45px;"></div>
         <button class="tool-icon" style="background:#444; font-size:22px;" onclick="copySelectionContent()" title="選択範囲をコピー">✂️</button>
         <button class="tool-icon" style="background:#444; font-size:22px;" onclick="pasteToSameLayer()" title="同じレイヤー内に貼り付け">📋</button>
-        <input　class="tool-icon" style="background:#444; font-size:22px;" type="file" id="myFile" accept="image/*">
         <div style="border-top: 1px solid #555; width: 45px;"></div>
         <input type="color" id="colorPicker" value="#000000">
     </div>
