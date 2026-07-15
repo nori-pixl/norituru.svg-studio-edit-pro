@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Web Photoshop - Full Features</title>
+    <title>svg studio edit pro</title></title>
     <style>
         :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
         body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
@@ -46,20 +46,20 @@
 <body>
 
 <header>
-    <h3>Svg Studio Edit Pro</h3>
+    <h4>Svg Studio Edit <span style="color:red;">Pro</span></h4>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <button class="action-btn" onclick="undo()">↩️ Undo</button>
-    <button class="action-btn" onclick="redo()">↪️ Redo</button>
+    <button class="action-btn" onclick="undo()">↩️</button>
+    <button class="action-btn" onclick="redo()">↪️</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <button class="action-btn" style="background:#0078d4;" onclick="changeCanvasDimensionsManual()">📐 Canvas Size</button>
+    <button class="action-btn" style="background:#0078d4;" onclick="changeCanvasDimensionsManual()">キャンバスサイズ</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">🗑️ Delete Selection</button>
+    <button class="action-btn" style="background:#cc3333;" onclick="deleteSelectionContent()">範囲削除</button>
     <div style="width:2px; height:40px; background:#444; margin:0 5px;"></div>
-    <input type="file" id="myFile" accept="image/*" style="display:none;"><button class="action-btn" onclick="document.getElementById('myFile').click()">🖼️ Add Image</button>
-    <button class="action-btn" style="background:#444;" onclick="exportSVG()">📤 Export SVG</button>
-    <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">📥 Import SVG</button>
+    <input type="file" id="myFile" accept="image/*" style="display:none;"><button class="action-btn" onclick="document.getElementById('myFile').click()">画像を追加</button>
+    <button class="action-btn" style="background:#444;" onclick="exportSVG()">svg　書き込み</button>
+    <button class="action-btn" style="background:#444;" onclick="document.getElementById('svg-loader').click()">svg 読み取り</button>
     <input type="file" id="svg-loader" class="hidden-file" accept=".svg" onchange="importSVG(this)">
-    <button class="action-btn" onclick="downloadImage()" style="margin-left:auto; background: #0078d4;">💾 Export PNG</button>
+    <button class="action-btn" onclick="downloadImage()" style="margin-left:auto; background: #0078d4;">pngで書き込み</button>
 </header>
 
 <div id="main">
