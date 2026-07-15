@@ -87,29 +87,29 @@
 
     <div id="right-panel">
         <div class="control-group">
-            <label id="size-label">Brush Size</label>
+            <label id="size-label">筆サイズ</label>
             <input type="range" id="sizeSlider" min="1" max="100" value="10" oninput="onSizeSliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="sizeValue">10</span>px</div>
         </div>
         <div class="control-group">
-            <label>Layer Opacity</label>
+            <label>レイヤーの不透明度</label>
             <input type="range" id="opacitySlider" min="0" max="100" value="100" oninput="onOpacitySliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="opacityValue">100</span>%</div>
         </div>
         <div class="control-group">
-            <label>Selection Scale (0% - 500%)</label>
+            <label>選抜尺度 (0% - 500%)</label>
             <input type="range" id="scaleSlider" min="0" max="500" value="100" oninput="onScaleSliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="scaleValue">100</span>%</div>
         </div>
         <div class="control-group">
-            <label>Selection Rotation (0° - 180°)</label>
+            <label>角度 (0° - 180°)</label>
             <input type="range" id="rotateSlider" min="0" max="180" value="0" oninput="onRotateSliderChange(this.value)">
             <div style="text-align: right; font-weight: bold; color: var(--accent);"><span id="rotateValue">0</span>°</div>
         </div>
         <div id="layer-panel-section">
             <div class="layer-header-tools">
-                <span style="font-size: 13px; color: #aaa; font-weight: bold;">Layers</span>
-                <button class="action-btn" onclick="addLayerManual()" style="background:#0078d4; padding:6px 12px; font-size:13px;">＋ Add</button>
+                <span style="font-size: 13px; color: #aaa; font-weight: bold;">レイヤー</span>
+                <button class="action-btn" onclick="addLayerManual()" style="background:#0078d4; padding:6px 12px; font-size:13px;">追加</button>
             </div>
             <div id="layer-list"></div>
         </div>
