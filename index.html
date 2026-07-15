@@ -5,59 +5,241 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Svg Studio Edit Pro</title>
     <style>
-        :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
-        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-sele[...]
-        header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; overflow-x: auto; }
-        #main { flex: 1; display: flex; overflow: hidden; }
-        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000[...]
-        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content[...]
-        .tool-icon:hover { background: #555; }
-        .tool-icon.active { background: var(--accent); }
-        
-        /* Photoshop型のグレー余白付きワークスペース */
-        #viewport { flex: 1; position: relative; overflow: hidden; background: #191919; touch-action: none; display: flex; align-items: center; justify-content: center; }
-        #view-stage { position: relative; transform-origin: center center; overflow: hidden !important; box-shadow: 0 0 30px rgba(0,0,0,0.8); background: #ffffff; }
-        #canvas-stack { width: 100%; height: 100%; position: relative; }
-        
-        canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; }
-        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent[...]
-        #paint-canvas.hand-mode { cursor: grab; }
-        #paint-canvas.move-mode { cursor: move; }
-        #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
-        
-        /* 形を変える用の頂点ハンドル */
-        .morph-handle { position: absolute; width: 12px; height: 12px; background: #ff6600; border: 2px solid white; border-radius: 50%; cursor: grab; z-index: 2001; display: none; }
-        .morph-handle:hover { background: #ffaa00; }
-        .morph-handle.active { background: #ff0000; }
-        
-        /* 3D コントロールパネル */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 5000; justify-content: center; align-items: center; }
-        .modal-content { background: var(--panel); padding: 20px; border-radius: 12px; border: 2px solid var(--accent); max-width: 600px; max-height: 80vh; overflow-y: auto; }
-        .modal-close { float: right; cursor: pointer; font-size: 24px; color: #aaa; }
-        .modal-close:hover { color: white; }
-        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: var(--accent); }
-        .control-row { display: flex; gap: 15px; margin-bottom: 15px; align-items: center; }
-        .control-row label { width: 80px; color: #aaa; }
-        .control-row input[type="range"] { flex: 1; }
-        .control-row .value { width: 40px; text-align: right; color: var(--accent); font-weight: bold; }
-        
-        #right-panel { width: 280px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
-        .control-group { padding: 12px; border-bottom: 1px solid #444; font-size: 13px; }
-        .control-group label { display: block; margin-bottom: 8px; color: #aaa; }
-        #layer-panel-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .layer-header-tools { padding: 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #444; }
-        #layer-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column-reverse; }
-        .layer-item { background: #444; margin: 4px 0; padding: 12px; font-size: 14px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
-        .layer-item.active { background: var(--accent); border: 1px solid white; }
-        .layer-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .layer-btn { background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 2px 4px; }
-        .layer-btn:hover { color: var(--accent); }
-        .action-btn { background: #555; color: white; border: none; padding: 12px 20px; cursor: pointer; border-radius: 12px; font-size: 16px; font-weight: bold; transition: 0.2s; }
-        .action-btn:hover { background: #666; }
-        input[type="range"] { width: 100%; }
-        .hidden-file { display: none; }
-        .divider { width: 45px; border-top: 1px solid #555; }
-    </style>
+       :root {
+  --bg: #1e1e1e;
+  --panel: #333;
+  --accent: #0078d4;
+  --text: #eee;
+  --border: #444;
+  --canvas-bg: #ffffff;
+}
+
+/* 基本リセット / レイアウト安定化 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #282828;
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden; /* アプリ風なら良いが、必要に応じて変更 */
+}
+
+/* ヘッダ */
+header {
+  background: var(--bg);
+  height: 60px;
+  flex: 0 0 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  border-bottom: 2px solid var(--border);
+  gap: 10px;
+  z-index: 1100; /* 明確に上にする */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* メインエリア（ヘッダ下で残りを取る）*/
+#main {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0; /* children の flex アイテムの高さ collapse を防ぐ */
+  overflow: hidden;
+}
+
+/* サイドバー */
+#sidebar {
+  width: 75px;
+  flex: 0 0 75px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 15px;
+  gap: 15px;
+  z-index: 1000;
+  overflow: auto;
+}
+
+/* ツールボタン */
+.tool-icon {
+  width: 55px;
+  height: 55px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 30px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, transform 0.08s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tool-icon:hover { background: #555; }
+.tool-icon.active { background: var(--accent); }
+
+/* ビューポート */
+#viewport {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 0; /* 重要：親の flex collapse を防ぐ */
+  background: #191919;
+  touch-action: none;
+}
+
+/* ステージ（キャンバスを内包） */
+#view-stage {
+  position: relative;
+  transform-origin: center center;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0,0,0,0.8);
+  background: var(--canvas-bg);
+  width: calc(100% - 32px); /* サイドの余白を避けつつ余裕を持たせる */
+  height: calc(100% - 32px);
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+
+/* キャンバス群 */
+#canvas-stack {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* レイヤーキャンバス共通 */
+canvas.layer-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  pointer-events: none;
+  background: transparent !important;
+}
+
+/* 描画用（入力を受ける）キャンバス */
+#paint-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: auto !important;
+  z-index: 1000;
+  cursor: crosshair;
+  background: transparent;
+}
+#paint-canvas.hand-mode { cursor: grab; }
+#paint-canvas.move-mode { cursor: move; }
+
+/* 選択範囲（マルキーボックス） */
+#marquee-box {
+  position: absolute;
+  border: 2px dashed #fff;
+  outline: 1px solid #000;
+  display: none;
+  z-index: 2000;
+  pointer-events: none;
+  background: rgba(255,255,255,0.02);
+}
+
+/* 変形ハンドル */
+.morph-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #ff6600;
+  border: 2px solid white;
+  border-radius: 50%;
+  cursor: grab;
+  z-index: 2001;
+  display: none; /* JS で display:block にする設計 */
+  transform: translate(-50%, -50%);
+}
+.morph-handle:hover { background: #ffaa00; }
+.morph-handle.active { background: #ff0000; display: block; }
+
+/* 3D モーダル */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 5000;
+  justify-content: center;
+  align-items: center;
+}
+.modal-content {
+  background: var(--panel);
+  padding: 20px;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal-close { float: right; cursor: pointer; font-size: 24px; color: #aaa; }
+.modal-close:hover { color: white; }
+.modal-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: var(--accent); }
+
+/* コントロール行 */
+.control-row { display: flex; gap: 15px; margin-bottom: 15px; align-items: center; }
+.control-row label { width: 80px; color: #aaa; }
+.control-row input[type="range"] { flex: 1; }
+.control-row .value { width: 40px; text-align: right; color: var(--accent); font-weight: bold; }
+
+/* 右パネル（レイヤー等）*/
+#right-panel {
+  width: 280px;
+  flex: 0 0 280px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  min-width: 200px;
+}
+
+/* 共通コントロール */
+.control-group { padding: 12px; border-bottom: 1px solid #444; font-size: 13px; }
+.control-group label { display: block; margin-bottom: 8px; color: #aaa; }
+#layer-panel-section { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
+.layer-header-tools { padding: 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #444; }
+#layer-list { flex: 1 1 auto; overflow-y: auto; padding: 6px; display: flex; flex-direction: column-reverse; min-height: 0; }
+.layer-item { background: #444; margin: 4px 0; padding: 12px; font-size: 14px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+.layer-item.active { background: var(--accent); border: 1px solid white; }
+.layer-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.layer-btn { background: none; border: none; color: white;*
+
 </head>
 <body>
 
