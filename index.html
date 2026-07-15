@@ -238,7 +238,51 @@ canvas.layer-canvas {
 .layer-item { background: #444; margin: 4px 0; padding: 12px; font-size: 14px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
 .layer-item.active { background: var(--accent); border: 1px solid white; }
 .layer-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.layer-btn { background: none; border: none; color: white;*
+.layer-btn { background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 2px 4px; }
+.layer-btn:hover { color: var(--accent); }
+
+.action-btn {
+  background: #555;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  cursor: pointer;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background 0.16s ease, transform 0.08s ease;
+}
+.action-btn:hover { background: #666; }
+
+/* フォーム系 */
+input[type="range"] { width: 100%; }
+.hidden-file { display: none; }
+.divider { width: 45px; border-top: 1px solid #555; }
+
+/* 小画面系の調整 */
+@media (max-width: 900px) {
+  #right-panel { display: none; } /* 必要に応じてトグルに切り替える方が良い */
+  #view-stage { width: calc(100% - 16px); height: calc(100% - 16px);*
+
+/* ユーティリティ（モーダル表示のためのクラス） */
+.modal-overlay.open { display: flex; }
+
+/* 明示的な focus / accessibility */
+.tool-icon:focus, .action-btn:focus, .layer-btn:focus {
+  outline: 2px solid rgba(0,120,212,0.6);
+  outline-offset: 2px;
+}
+
+/* スクロールバーの見た目（任意） */
+#layer-list::-webkit-scrollbar, #sidebar::-webkit-scrollbar, header::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+#layer-list::-webkit-scrollbar-thumb, #sidebar::-webkit-scrollbar-thumb, header::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 6px;
+}
+</style>
 
 </head>
 <body>
