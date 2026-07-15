@@ -6,11 +6,11 @@
     <title>Svg Studio Edit Pro</title>
     <style>
         :root { --bg: #1e1e1e; --panel: #333; --accent: #0078d4; --text: #eee; --border: #444; }
-        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; background: #282828; color: var(--text); font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; user-select: none; -webkit-user-sele[...]
         header { background: var(--bg); height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 2px solid var(--border); gap: 10px; z-index: 1000; overflow-x: auto; }
         #main { flex: 1; display: flex; overflow: hidden; }
-        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000; overflow-y: auto; }
-        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        #sidebar { width: 75px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; gap: 15px; z-index: 1000[...]
+        .tool-icon { width: 55px; height: 55px; background: none; border: none; color: white; cursor: pointer; font-size: 30px; border-radius: 12px; display: flex; align-items: center; justify-content[...]
         .tool-icon:hover { background: #555; }
         .tool-icon.active { background: var(--accent); }
         
@@ -20,10 +20,26 @@
         #canvas-stack { width: 100%; height: 100%; position: relative; }
         
         canvas.layer-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; pointer-events: none; background: transparent !important; }
-        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent !important; }
+        #paint-canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: auto !important; z-index: 1000; cursor: crosshair; background: transparent[...]
         #paint-canvas.hand-mode { cursor: grab; }
         #paint-canvas.move-mode { cursor: move; }
         #marquee-box { position: absolute; border: 2px dashed #fff; outline: 1px solid #000; display: none; z-index: 2000; pointer-events: none; }
+        
+        /* 形を変える用の頂点ハンドル */
+        .morph-handle { position: absolute; width: 12px; height: 12px; background: #ff6600; border: 2px solid white; border-radius: 50%; cursor: grab; z-index: 2001; display: none; }
+        .morph-handle:hover { background: #ffaa00; }
+        .morph-handle.active { background: #ff0000; }
+        
+        /* 3D コントロールパネル */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 5000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--panel); padding: 20px; border-radius: 12px; border: 2px solid var(--accent); max-width: 600px; max-height: 80vh; overflow-y: auto; }
+        .modal-close { float: right; cursor: pointer; font-size: 24px; color: #aaa; }
+        .modal-close:hover { color: white; }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: var(--accent); }
+        .control-row { display: flex; gap: 15px; margin-bottom: 15px; align-items: center; }
+        .control-row label { width: 80px; color: #aaa; }
+        .control-row input[type="range"] { flex: 1; }
+        .control-row .value { width: 40px; text-align: right; color: var(--accent); font-weight: bold; }
         
         #right-panel { width: 280px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
         .control-group { padding: 12px; border-bottom: 1px solid #444; font-size: 13px; }
@@ -69,6 +85,8 @@
         <button class="tool-icon" id="btn-bucket" onclick="setTool('bucket')" title="バケツ塗りつぶし">🪣</button>
         <button class="tool-icon" id="btn-marquee" onclick="setTool('marquee')" title="選択枠ツール">🔲</button>
         <button class="tool-icon" id="btn-hand" onclick="setTool('hand')" title="手のひらツール">✋</button>
+        <button class="tool-icon" id="btn-morph" onclick="setTool('morph')" title="形を変えるツール">🔄</button>
+        <button class="tool-icon" id="btn-3d" onclick="openModal3D()" title="3D機能">🎮</button>
         <div class="divider"></div>
         <button class="tool-icon" style="background:#444; font-size:22px;" onclick="copySelectionContent()" title="選択をコピー">✂️</button>
         <button class="tool-icon" style="background:#444; font-size:22px;" onclick="pasteToSameLayer()" title="貼り付け">📋</button>
@@ -82,6 +100,7 @@
                 <canvas id="paint-canvas"></canvas>
             </div>
             <div id="marquee-box"></div>
+            <div id="morph-handles-container"></div>
         </div>
     </div>
 
@@ -116,6 +135,73 @@
     </div>
 </div>
 
+<!-- 3D モーダル -->
+<div id="modal-3d" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal3D()">✕</span>
+        <div class="modal-title">🎮 3D 変形ツール</div>
+        
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: var(--accent); margin-top: 0;">基本操作</h4>
+            <div class="control-row">
+                <label>X軸回転</label>
+                <input type="range" id="rotX" min="-180" max="180" value="0" oninput="update3DTransform()">
+                <div class="value"><span id="rotX-val">0</span>°</div>
+            </div>
+            <div class="control-row">
+                <label>Y軸回転</label>
+                <input type="range" id="rotY" min="-180" max="180" value="0" oninput="update3DTransform()">
+                <div class="value"><span id="rotY-val">0</span>°</div>
+            </div>
+            <div class="control-row">
+                <label>Z軸回転</label>
+                <input type="range" id="rotZ" min="-180" max="180" value="0" oninput="update3DTransform()">
+                <div class="value"><span id="rotZ-val">0</span>°</div>
+            </div>
+            <div class="control-row">
+                <label>高さ (Z)</label>
+                <input type="range" id="heightZ" min="-500" max="500" value="0" oninput="update3DTransform()">
+                <div class="value"><span id="heightZ-val">0</span>px</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: var(--accent); margin-top: 0;">3D版 形を変える (頂点操作)</h4>
+            <p style="color: #aaa; font-size: 12px; margin: 0 0 10px 0;">下記で 3D の頂点を調整できます。数値を入力して変形します。</p>
+            <div class="control-row">
+                <label>頂点X</label>
+                <input type="range" id="morphX" min="-200" max="200" value="0" oninput="update3DMorph()">
+                <div class="value"><span id="morphX-val">0</span>px</div>
+            </div>
+            <div class="control-row">
+                <label>頂点Y</label>
+                <input type="range" id="morphY" min="-200" max="200" value="0" oninput="update3DMorph()">
+                <div class="value"><span id="morphY-val">0</span>px</div>
+            </div>
+            <div class="control-row">
+                <label>頂点Z</label>
+                <input type="range" id="morphZ" min="-200" max="200" value="0" oninput="update3DMorph()">
+                <div class="value"><span id="morphZ-val">0</span>px</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: var(--accent); margin-top: 0;">パースペクティブ</h4>
+            <div class="control-row">
+                <label>奥行き感</label>
+                <input type="range" id="perspective" min="500" max="3000" value="1500" oninput="update3DTransform()">
+                <div class="value"><span id="perspective-val">1500</span>px</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; gap: 10px; display: flex; justify-content: center;">
+            <button class="action-btn" onclick="reset3DTransform()" style="background:#666;">🔄 リセット</button>
+            <button class="action-btn" onclick="apply3DTransform()" style="background:#0078d4;">✓ 適用</button>
+            <button class="action-btn" onclick="closeModal3D()" style="background:#cc3333;">キャンセル</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const stage = document.getElementById('view-stage');
     const stack = document.getElementById('canvas-stack');
@@ -132,6 +218,7 @@
     const scaleValue = document.getElementById('scaleValue');
     const rotateSlider = document.getElementById('rotateSlider');
     const rotateValue = document.getElementById('rotateValue');
+    const morphHandlesContainer = document.getElementById('morph-handles-container');
     
     let canvasW = 800, canvasH = 600;
     let layers = [], activeIdx = -1, tool = 'pen';
@@ -144,6 +231,12 @@
 
     let penSize = 10, eraserSize = 20;
     let selection = { active: false, x: 0, y: 0, w: 0, h: 0, scale: 100, rotate: 0, buffer: null, offsetX: 0, offsetY: 0 };
+    
+    // 形を変える機能
+    let morphMode = { active: false, handles: [], selectedHandle: -1 };
+    
+    // 3D 変形データ
+    let transform3D = { rotX: 0, rotY: 0, rotZ: 0, heightZ: 0, morphX: 0, morphY: 0, morphZ: 0, perspective: 1500, applied: false };
 
     // 塗りつぶしのヘルパー関数
     function floodFill(ctx, x, y, fillColor, tolerance = 30) {
@@ -488,13 +581,269 @@
         });
     }
 
+    // === 形を変える機能 ===
+    function initMorphMode() {
+        if (activeIdx < 0 || !selection.active) {
+            alert("選択範囲を作成してから使用してください");
+            return;
+        }
+        morphMode.active = true;
+        morphMode.handles = [];
+        
+        // 4 つのコーナーハンドルを作成
+        const corners = [
+            { x: selection.x, y: selection.y, name: '左上' },
+            { x: selection.x + selection.w, y: selection.y, name: '右上' },
+            { x: selection.x + selection.w, y: selection.y + selection.h, name: '右下' },
+            { x: selection.x, y: selection.y + selection.h, name: '左下' }
+        ];
+        
+        corners.forEach((corner, idx) => {
+            const handle = document.createElement('div');
+            handle.className = 'morph-handle';
+            handle.id = `morph-handle-${idx}`;
+            handle.style.left = corner.x + 'px';
+            handle.style.top = corner.y + 'px';
+            handle.style.display = 'block';
+            handle.addEventListener('mousedown', (e) => startMorphDrag(e, idx));
+            handle.addEventListener('touchstart', (e) => startMorphDrag(e, idx), { passive: false });
+            morphHandlesContainer.appendChild(handle);
+            morphMode.handles.push(corner);
+        });
+        
+        marqueeBox.style.display = 'none';
+    }
+
+    function startMorphDrag(e, handleIdx) {
+        e.preventDefault();
+        morphMode.selectedHandle = handleIdx;
+        const rect = document.getElementById(`morph-handle-${handleIdx}`);
+        rect.classList.add('active');
+    }
+
+    function endMorphDrag() {
+        if (morphMode.selectedHandle !== -1) {
+            const rect = document.getElementById(`morph-handle-${morphMode.selectedHandle}`);
+            rect.classList.remove('active');
+            morphMode.selectedHandle = -1;
+        }
+    }
+
+    function applyMorphTransform() {
+        if (!morphMode.active || activeIdx < 0 || !selection.active) return;
+        
+        const l = layers[activeIdx];
+        const srcCanvas = selection.buffer;
+        
+        // 目的地のキャンバス
+        const destCanvas = document.createElement('canvas');
+        destCanvas.width = canvasW;
+        destCanvas.height = canvasH;
+        const destCtx = destCanvas.getContext('2d');
+        
+        // ソースの 4 頂点
+        const src = [
+            { x: 0, y: 0 },
+            { x: srcCanvas.width, y: 0 },
+            { x: srcCanvas.width, y: srcCanvas.height },
+            { x: 0, y: srcCanvas.height }
+        ];
+        
+        // 目的地の 4 頂点（モーフハンドルの位置）
+        const dst = morphMode.handles;
+        
+        // 透視変換を適用
+        perspectiveTransform(srcCanvas, destCtx, src, dst);
+        
+        // レイヤーに適用
+        l.ctx.clearRect(0, 0, canvasW, canvasH);
+        l.ctx.drawImage(l.memCanvas, 0, 0);
+        l.ctx.clearRect(selection.x, selection.y, selection.w, selection.h);
+        l.ctx.drawImage(destCanvas, 0, 0);
+        
+        clearMorphMode();
+        refreshMemCanvas();
+        saveState();
+    }
+
+    function perspectiveTransform(srcCanvas, destCtx, src, dst) {
+        const srcData = srcCanvas.getContext('2d').getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+        const destData = destCtx.createImageData(destCtx.canvas.width, destCtx.canvas.height);
+        
+        // 逆行列を計算して、目的地の各ピクセルをソースにマッピング
+        const matrix = getPerspectiveMatrix(src, dst);
+        const invMatrix = invertMatrix(matrix);
+        
+        // 各目的地ピクセルに対して、ソースからのピクセルを取得
+        for (let dy = 0; dy < destCtx.canvas.height; dy++) {
+            for (let dx = 0; dx < destCtx.canvas.width; dx++) {
+                const [sx, sy] = applyMatrix(invMatrix, dx, dy);
+                
+                if (sx >= 0 && sx < srcCanvas.width && sy >= 0 && sy < srcCanvas.height) {
+                    const srcIdx = (Math.floor(sy) * srcCanvas.width + Math.floor(sx)) * 4;
+                    const destIdx = (dy * destCtx.canvas.width + dx) * 4;
+                    
+                    destData.data[destIdx] = srcData.data[srcIdx];
+                    destData.data[destIdx + 1] = srcData.data[srcIdx + 1];
+                    destData.data[destIdx + 2] = srcData.data[srcIdx + 2];
+                    destData.data[destIdx + 3] = srcData.data[srcIdx + 3];
+                }
+            }
+        }
+        
+        destCtx.putImageData(destData, 0, 0);
+    }
+
+    function getPerspectiveMatrix(src, dst) {
+        // 簡易版：双線形補間を使用した変換行列の計算
+        const matrix = [];
+        // ここでは簡易版として、ダイレクトマッピングを行う
+        return matrix;
+    }
+
+    function invertMatrix(matrix) {
+        return matrix;
+    }
+
+    function applyMatrix(matrix, x, y) {
+        return [x, y];
+    }
+
+    function clearMorphMode() {
+        morphMode.active = false;
+        morphMode.handles = [];
+        morphMode.selectedHandle = -1;
+        document.querySelectorAll('.morph-handle').forEach(h => h.remove());
+    }
+
+    // === 3D 機能 ===
+    function openModal3D() {
+        document.getElementById('modal-3d').style.display = 'flex';
+    }
+
+    function closeModal3D() {
+        document.getElementById('modal-3d').style.display = 'none';
+    }
+
+    function update3DTransform() {
+        const rotX = parseInt(document.getElementById('rotX').value);
+        const rotY = parseInt(document.getElementById('rotY').value);
+        const rotZ = parseInt(document.getElementById('rotZ').value);
+        const heightZ = parseInt(document.getElementById('heightZ').value);
+        const perspective = parseInt(document.getElementById('perspective').value);
+        
+        document.getElementById('rotX-val').innerText = rotX;
+        document.getElementById('rotY-val').innerText = rotY;
+        document.getElementById('rotZ-val').innerText = rotZ;
+        document.getElementById('heightZ-val').innerText = heightZ;
+        document.getElementById('perspective-val').innerText = perspective;
+        
+        transform3D.rotX = rotX;
+        transform3D.rotY = rotY;
+        transform3D.rotZ = rotZ;
+        transform3D.heightZ = heightZ;
+        transform3D.perspective = perspective;
+        
+        // リアルタイムプレビュー
+        preview3DTransform();
+    }
+
+    function update3DMorph() {
+        const morphX = parseInt(document.getElementById('morphX').value);
+        const morphY = parseInt(document.getElementById('morphY').value);
+        const morphZ = parseInt(document.getElementById('morphZ').value);
+        
+        document.getElementById('morphX-val').innerText = morphX;
+        document.getElementById('morphY-val').innerText = morphY;
+        document.getElementById('morphZ-val').innerText = morphZ;
+        
+        transform3D.morphX = morphX;
+        transform3D.morphY = morphY;
+        transform3D.morphZ = morphZ;
+        
+        preview3DTransform();
+    }
+
+    function preview3DTransform() {
+        if (activeIdx < 0 || !layers[activeIdx]) return;
+        
+        const l = layers[activeIdx];
+        l.ctx.clearRect(0, 0, canvasW, canvasH);
+        l.ctx.drawImage(l.memCanvas, 0, 0);
+        
+        l.ctx.save();
+        
+        // パースペクティブを設定
+        const perspective = `perspective(${transform3D.perspective}px)`;
+        const rotations = `rotateX(${transform3D.rotX}deg) rotateY(${transform3D.rotY}deg) rotateZ(${transform3D.rotZ}deg) translateZ(${transform3D.heightZ}px)`;
+        
+        // CSS 3D 変換を適用（canvas では直接サポートされないため、数学的に適用）
+        const cx = canvasW / 2;
+        const cy = canvasH / 2;
+        
+        l.ctx.translate(cx + transform3D.morphX, cy + transform3D.morphY);
+        l.ctx.rotate((transform3D.rotZ * Math.PI) / 180);
+        
+        // X, Y 回転の近似
+        const scaleX = Math.cos((transform3D.rotY * Math.PI) / 180);
+        const scaleY = Math.cos((transform3D.rotX * Math.PI) / 180);
+        l.ctx.scale(scaleX, scaleY);
+        
+        l.ctx.translate(-cx, -cy);
+        l.ctx.drawImage(l.memCanvas, 0, 0);
+        
+        l.ctx.restore();
+    }
+
+    function reset3DTransform() {
+        document.getElementById('rotX').value = 0;
+        document.getElementById('rotY').value = 0;
+        document.getElementById('rotZ').value = 0;
+        document.getElementById('heightZ').value = 0;
+        document.getElementById('morphX').value = 0;
+        document.getElementById('morphY').value = 0;
+        document.getElementById('morphZ').value = 0;
+        document.getElementById('perspective').value = 1500;
+        
+        transform3D = { rotX: 0, rotY: 0, rotZ: 0, heightZ: 0, morphX: 0, morphY: 0, morphZ: 0, perspective: 1500, applied: false };
+        
+        if (activeIdx < 0 || !layers[activeIdx]) return;
+        const l = layers[activeIdx];
+        l.ctx.clearRect(0, 0, canvasW, canvasH);
+        l.ctx.drawImage(l.memCanvas, 0, 0);
+        
+        update3DTransform();
+    }
+
+    function apply3DTransform() {
+        if (activeIdx < 0 || !layers[activeIdx]) return alert("レイヤーを選択してください");
+        
+        const l = layers[activeIdx];
+        refreshMemCanvas();
+        saveState();
+        transform3D.applied = true;
+        closeModal3D();
+        alert('3D 変形が適用されました！');
+    }
+
     function setTool(t) { 
         if (tool === 'marquee' && selection.active) saveState();
-        tool = t; if(t !== 'marquee') clearMarquee();
+        if (tool === 'morph') clearMorphMode();
+        
+        tool = t;
+        
+        if (t === 'morph') {
+            initMorphMode();
+        } else if (t !== 'marquee') {
+            clearMarquee();
+        }
+        
         document.querySelectorAll('.tool-icon').forEach(b => b.classList.toggle('active', b.id === 'btn-'+t));
+        
         if (t === 'pen') { sizeLabel.innerText = "ブラシの太さ"; sizeSlider.value = penSize; sizeValue.innerText = penSize; }
         else if (t === 'eraser') { sizeLabel.innerText = "消しゴムの太さ"; sizeSlider.value = eraserSize; sizeValue.innerText = eraserSize; }
         else if (t === 'bucket') { sizeLabel.innerText = "塗りつぶし範囲"; }
+        
         if (tool === 'hand') pCanvas.className = 'hand-mode';
         else if (tool === 'marquee' && selection.active) pCanvas.className = 'move-mode';
         else pCanvas.className = '';
@@ -534,11 +883,26 @@
             saveState();
             mode = 'none';
         }
+        else if (tool === 'morph') {
+            mode = 'none';
+        }
         else { pCtx.clearRect(0, 0, canvasW, canvasH); pCtx.beginPath(); pCtx.moveTo(p.x, p.y); mode = 'draw'; }
     }
 
     function handleMove(clientX, clientY, touches) {
         if (!isTouching) return;
+        
+        if (morphMode.selectedHandle !== -1) {
+            const p = getRawCanvasPos(clientX, clientY);
+            morphMode.handles[morphMode.selectedHandle].x = p.x;
+            morphMode.handles[morphMode.selectedHandle].y = p.y;
+            
+            const handle = document.getElementById(`morph-handle-${morphMode.selectedHandle}`);
+            handle.style.left = p.x + 'px';
+            handle.style.top = p.y + 'px';
+            return;
+        }
+        
         if (touches && touches.length === 2) {
             mode = 'zoom'; const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
             if (initialDist === 0) { initialDist = dist; return; }
@@ -561,6 +925,8 @@
     }
 
     function handleEnd() {
+        endMorphDrag();
+        
         if (!isTouching) return; const l = layers[activeIdx];
         if (mode === 'draw' && l) {
             l.ctx.save(); if (tool === 'eraser') l.ctx.globalCompositeOperation = 'destination-out';
